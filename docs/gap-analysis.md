@@ -78,5 +78,5 @@
 
 ## 公開
 
-`.github/workflows/pages.yml` を追加済み。`main` への push で GitHub Pages へ自動公開される。
+`.github/workflows/pages.yml` を追加済み。既定ブランチへの push で GitHub Pages へ自動公開される。
 **初回のみ**、リポジトリの Settings > Pages で Source を「GitHub Actions」に変更する必要がある（この設定はコードからは変更できない）。

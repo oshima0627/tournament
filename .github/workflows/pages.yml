@@ -5,7 +5,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/tournament-bracket-tool-har533   # 現在の既定ブランチ。main に統合したらこの行は削除してよい
   workflow_dispatch:
 
 permissions:

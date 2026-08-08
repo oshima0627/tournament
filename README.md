@@ -52,7 +52,7 @@
 
 ### 公開する（GitHub Pages）
 
-`.github/workflows/pages.yml` を用意してあるので、`main` に push すれば自動で公開されます。
+`.github/workflows/pages.yml` を用意してあるので、既定ブランチに push すれば自動で公開されます。
 **初回のみ**、リポジトリの **Settings → Pages** で Source を「GitHub Actions」に変更してください。
 
 サーバーサイドの処理は一切ありません。参加者名を含むすべてのデータは利用者のブラウザ内に留まります。
