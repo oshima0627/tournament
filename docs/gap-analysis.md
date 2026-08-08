@@ -1,7 +1,7 @@
 # 要件と実装の対応状況
 
 - 対象要件: [requirements.md](./requirements.md) v1.0
-- 対象実装: `index.html` / `assets/style.css` / `assets/app.js`
+- 対象実装: `public/` 以下（`index.html` / `assets/style.css` / `assets/app.js` / `sw.js`）
 - 最終更新: 2026-08-08
 
 要件 v1.0 の**機能要件23件・非機能要件のすべてを実装済み**。未対応の項目はない。
@@ -78,5 +78,6 @@
 
 ## 公開
 
-`.github/workflows/pages.yml` を追加済み。既定ブランチへの push で GitHub Pages へ自動公開される。
-**初回のみ**、リポジトリの Settings > Pages で Source を「GitHub Actions」に変更する必要がある（この設定はコードからは変更できない）。
+Cloudflare Workers（静的アセット）で公開する。設定は `wrangler.jsonc`、自動公開は `.github/workflows/deploy.yml`。
+
+**初回のみ**、リポジトリの Settings > Secrets and variables > Actions で `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を登録する必要がある（この操作はコードからは行えない）。手順は README を参照。

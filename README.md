@@ -24,7 +24,7 @@
 
 ## 使い方
 
-1. `index.html` をブラウザで開く
+1. `public/index.html` をブラウザで開く
 2. 左パネルで参加者を入力（1名ずつ、または「まとめて入力」に改行区切りで貼り付け）
 3. 大会名を入力
 4. 「形式」でトーナメントかリーグを選ぶ
@@ -50,25 +50,41 @@
 2回戦以降は、その時点の人数が奇数になったときだけ1人が不戦勝で通過します（「2の累乗の枠」を選ぶとこれは発生しません）。1回戦の免除は「シード」、2回戦以降は「不戦勝」と表示されます。
 
 
-### 公開する（GitHub Pages）
+### 公開する（Cloudflare Workers）
 
-`.github/workflows/pages.yml` を用意してあるので、既定ブランチに push すれば自動で公開されます。
-**初回のみ**、リポジトリの **Settings → Pages** で Source を「GitHub Actions」に変更してください。
+`public/` 以下を Cloudflare Workers の静的アセットとして配信します。サーバーサイドの処理は一切ありません。参加者名を含むすべてのデータは利用者のブラウザ内に留まります。
 
-サーバーサイドの処理は一切ありません。参加者名を含むすべてのデータは利用者のブラウザ内に留まります。
+**手元から公開する場合**
+
+```sh
+npx wrangler deploy
+```
+
+**GitHub から自動公開する場合**
+
+`.github/workflows/deploy.yml` を用意してあるので、既定ブランチに push すれば公開されます。事前に **Settings → Secrets and variables → Actions** で次の2つを登録してください。未登録のあいだは公開をスキップするだけで、ワークフローは失敗しません。
+
+| 名前 | 取得元 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare ダッシュボード → My Profile → API Tokens。テンプレート「Edit Cloudflare Workers」で作成 |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare ダッシュボードのURL、または Workers の概要ページに表示される |
+
+公開先は `taisenhyo.<サブドメイン>.workers.dev` になります。名前は `wrangler.jsonc` の `name` で変更できます。
 
 ## ファイル構成
 
 ```
-index.html            画面の構造
-assets/style.css      見た目（レイアウト定数は :root と app.js の LAYOUT を対応させています）
-assets/app.js         トーナメント／リーグの生成・勝敗の解決・描画・入出力
-sw.js                 Service Worker（オフライン対応）
-docs/requirements.md  要件定義書
-docs/gap-analysis.md  要件と実装の対応状況
+public/                      配信されるファイルはこの中だけ
+  index.html                 画面の構造
+  assets/style.css           見た目（レイアウト定数は :root と app.js の LAYOUT を対応させています）
+  assets/app.js              トーナメント／リーグの生成・勝敗の解決・描画・入出力
+  sw.js                      Service Worker（オフライン対応）
+wrangler.jsonc               Cloudflare Workers の設定
+docs/requirements.md         要件定義書
+docs/gap-analysis.md         要件と実装の対応状況
 ```
 
-`assets/` を書き換えたときは `sw.js` の `CACHE` の版数を上げてください。古いキャッシュが残り続けるのを防ぐためです。
+`public/assets/` を書き換えたときは `public/sw.js` の `CACHE` の版数を上げてください。古いキャッシュが残り続けるのを防ぐためです。
 
 ### 仕組み（概要）
 

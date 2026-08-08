@@ -1,0 +1,38 @@
+name: Deploy to Cloudflare
+
+# public/ 以下の静的ファイルを Cloudflare Workers へ公開する。
+# 事前にリポジトリの Settings > Secrets and variables > Actions で
+# CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID を登録しておくこと。
+# 未登録のあいだは公開をスキップするだけで、失敗にはしない。
+
+on:
+  push:
+    branches:
+      - main
+      - claude/tournament-bracket-tool-har533   # 現在の既定ブランチ。main に統合したらこの行は削除してよい
+  workflow_dispatch:
+
+# 公開は同時に1つだけ走らせる
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 設定が未登録なら知らせる
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo "::notice::CLOUDFLARE_API_TOKEN が未登録のため、公開をスキップしました"
+
+      - name: Cloudflare へ公開する
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
