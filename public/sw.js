@@ -10,7 +10,7 @@
  * =========================================================== */
 'use strict';
 
-const CACHE = 'taisenhyo-v1';
+const CACHE = 'taisenhyo-v2';
 
 /** 事前に取り込むファイル（アプリの動作に必要なものすべて） */
 const SHELL = [

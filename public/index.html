@@ -4,17 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>対戦表メーカー</title>
-<meta name="description" content="参加者名を入れるだけでトーナメント表・リーグ表を作成。クリックで勝敗を記録できます。">
+<meta name="description" content="参加者名を入れるだけでトーナメント表・リーグ表を作成。タップで勝敗を記録できます。">
+<meta name="theme-color" content="#f6f5f2">
 <link rel="stylesheet" href="assets/style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🏆</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317191c' stroke-width='2' stroke-linecap='round'><path d='M4 7h7M4 17h7M11 7v10M11 12h9'/></svg>">
 </head>
 <body>
 
+<!-- アイコン。絵文字は使わず、線画で統一する -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-mark" viewBox="0 0 24 24"><path d="M4 7h7M4 17h7M11 7v10M11 12h9"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M9.5 14.5l5-5M11 6.5l1.6-1.6a4.3 4.3 0 016 6L17 12.5M13 17.5l-1.6 1.6a4.3 4.3 0 01-6-6L7 11.5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7.5 10.5L12 15l4.5-4.5M4 20h16"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5M4 20h16"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 16l4.5-4.5L13 16l3-3 4 4"/><circle cx="9" cy="9" r="1.3"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 18H5a2 2 0 01-2-2v-4a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2h-2M7 14h10v7H7z"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M16 4h4v4M20 4l-6.5 6.5M16 20h4v-4M20 20l-5-5M4 4l5 5M4 20L20 4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v13M6.5 12.5L12 18l5.5-5.5"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+</svg>
+
 <header class="topbar">
-  <h1 class="brand">🏆 対戦表メーカー</h1>
-  <div class="topbar-actions">
-    <button type="button" id="btn-toggle-panel" class="btn ghost">設定パネル</button>
+  <div class="brand">
+    <span class="brand-badge"><svg class="brand-mark" aria-hidden="true"><use href="#i-mark"/></svg></span>
+    <span class="brand-name">対戦表メーカー</span>
   </div>
+  <button type="button" id="btn-toggle-panel" class="btn quiet">
+    <svg class="i" aria-hidden="true"><use href="#i-menu"/></svg>設定
+  </button>
 </header>
 
 <!-- 共有URLで開いたときだけ表示する -->
@@ -25,97 +45,100 @@
 
 <div class="layout">
 
-  <!-- ========== 左：設定パネル ========== -->
+  <!-- ========== 左：設定 ========== -->
   <aside class="panel" id="panel">
 
-    <section class="card">
-      <h2>大会名</h2>
+    <section class="block">
+      <h2 class="block-title">大会名</h2>
       <input type="text" id="title" class="input" placeholder="第1回 社内大会" autocomplete="off">
     </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>参加者 <span class="badge" id="player-count">0</span></h2>
-        <div class="row-actions">
-          <button type="button" id="btn-shuffle" class="btn small" title="組み合わせを抽選します">🎲 抽選</button>
-        </div>
+    <section class="block">
+      <div class="block-head">
+        <h2 class="block-title">参加者 <span class="count" id="player-count">0</span></h2>
+        <button type="button" id="btn-shuffle" class="btn small" title="組み合わせを抽選します">
+          <svg class="i" aria-hidden="true"><use href="#i-shuffle"/></svg>抽選
+        </button>
       </div>
 
       <ul class="player-list" id="player-list"></ul>
-      <p class="hint" id="size-warning" hidden></p>
+      <p class="note warn" id="size-warning" hidden></p>
 
       <form id="add-form" class="add-row">
-        <input type="text" id="add-input" class="input" placeholder="参加者名を入力して Enter" autocomplete="off">
-        <button type="submit" class="btn primary">追加</button>
+        <input type="text" id="add-input" class="input" placeholder="名前を入力して Enter" autocomplete="off">
+        <button type="submit" class="btn primary">
+          <svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>追加
+        </button>
       </form>
 
       <details class="bulk">
-        <summary>まとめて入力 / 貼り付け</summary>
-        <p class="hint">1行に1名。カンマ区切りにも対応しています。</p>
-        <textarea id="bulk-text" class="input textarea" rows="7" placeholder="Aチーム&#10;Bチーム&#10;Cチーム"></textarea>
-        <div class="row-actions end">
+        <summary>まとめて入力</summary>
+        <p class="note">1行に1名。カンマ区切りにも対応しています。</p>
+        <textarea id="bulk-text" class="input textarea" rows="6" placeholder="Aチーム&#10;Bチーム&#10;Cチーム"></textarea>
+        <div class="row end">
           <button type="button" id="btn-bulk-apply" class="btn primary small">この内容で作成</button>
         </div>
       </details>
     </section>
 
-    <section class="card">
-      <h2>形式</h2>
-      <label class="field">
-        <span>対戦の形式</span>
+    <section class="block">
+      <h2 class="block-title">形式</h2>
+      <div class="field">
+        <label for="format">対戦の形式</label>
         <select id="format" class="input">
           <option value="tournament">トーナメント（勝ち抜き）</option>
           <option value="league">リーグ（総当たり）</option>
         </select>
-      </label>
+      </div>
 
       <div id="tournament-opts">
-        <p class="hint">参加者リストの<b>並び順がそのまま配置</b>になります。上から順に2人ずつ対戦し、<b>リストの下にいる人</b>が不戦勝（シード）になります。</p>
-        <label class="field">
-          <span>1回戦の不戦勝（シード）</span>
+        <p class="note">参加者リストの<b>並び順がそのまま配置</b>になります。上から順に2人ずつ対戦し、<b>リストの下にいる人</b>が不戦勝（シード）になります。</p>
+        <div class="field">
+          <label for="bye-count">1回戦の不戦勝（シード）</label>
           <select id="bye-count" class="input"></select>
-        </label>
-        <p class="hint" id="bye-hint"></p>
-        <label class="check"><input type="checkbox" id="opt-third"> 3位決定戦を行う</label>
-        <p class="hint">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
+        </div>
+        <p class="note" id="bye-hint"></p>
+        <label class="check"><input type="checkbox" id="opt-third"><span>3位決定戦を行う</span></label>
+        <p class="note">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
       </div>
 
       <div id="league-opts" hidden>
-        <p class="hint">全員が1回ずつ対戦します。順位は<b>勝点（勝3・分1・敗0）→ 得失点差 → 総得点</b>の順に比較して決めます。</p>
-        <p class="hint" id="league-hint"></p>
+        <p class="note">全員が1回ずつ対戦します。順位は<b>勝点（勝3・分1・敗0）→ 得失点差 → 総得点</b>の順に比較して決めます。</p>
+        <p class="note" id="league-hint"></p>
       </div>
 
-      <label class="check"><input type="checkbox" id="opt-score"> スコアを記録する</label>
-      <label class="field">
-        <span>表示倍率 <b id="zoom-label">100%</b></span>
+      <label class="check"><input type="checkbox" id="opt-score"><span>スコアを記録する</span></label>
+
+      <div class="field">
+        <label for="zoom">表示倍率 <b id="zoom-label">100%</b></label>
         <input type="range" id="zoom" min="40" max="150" step="5" value="100">
-      </label>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>保存 / 書き出し</h2>
-      <div class="grid-btns">
-        <button type="button" id="btn-share" class="btn">🔗 共有URLをコピー</button>
-        <button type="button" id="btn-export-json" class="btn">💾 JSON保存</button>
-        <button type="button" id="btn-import-json" class="btn">📂 JSON読込</button>
-        <button type="button" id="btn-export-png" class="btn">🖼 PNG保存</button>
-        <button type="button" id="btn-export-svg" class="btn">🖼 SVG保存</button>
-        <button type="button" id="btn-print" class="btn">🖨 印刷 / PDF</button>
+    <section class="block">
+      <h2 class="block-title">保存 / 書き出し</h2>
+      <div class="btn-grid">
+        <button type="button" id="btn-share" class="btn"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg>共有URL</button>
+        <button type="button" id="btn-print" class="btn"><svg class="i" aria-hidden="true"><use href="#i-print"/></svg>印刷</button>
+        <button type="button" id="btn-export-json" class="btn"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>JSON保存</button>
+        <button type="button" id="btn-import-json" class="btn"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg>JSON読込</button>
+        <button type="button" id="btn-export-png" class="btn"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>PNG</button>
+        <button type="button" id="btn-export-svg" class="btn"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>SVG</button>
       </div>
-      <p class="hint">共有URLには<b>参加者名を含む対戦表の内容がすべて入ります</b>。URLを知っている人は誰でも閲覧できます。受け取った人は閲覧のみで、記録はできません。</p>
+      <p class="note">共有URLには<b>参加者名を含む対戦表の内容がすべて</b>入ります。URLを知っている人は誰でも閲覧できます。受け取った人は閲覧のみで、記録はできません。</p>
       <input type="file" id="file-json" accept="application/json,.json" hidden>
-      <div class="row-actions end mt">
-        <button type="button" id="btn-reset-results" class="btn small danger-ghost">勝敗をリセット</button>
-        <button type="button" id="btn-new" class="btn small danger-ghost">新しい大会</button>
+      <div class="row end">
+        <button type="button" id="btn-reset-results" class="btn small danger">勝敗をリセット</button>
+        <button type="button" id="btn-new" class="btn small danger">新しい大会</button>
       </div>
     </section>
 
-    <p class="foot-hint" id="foot-hint"></p>
+    <p class="panel-foot" id="foot-hint"></p>
   </aside>
 
   <!-- ========== 右：対戦表 ========== -->
   <main class="main">
-    <div id="board-title" class="board-title"></div>
+    <h2 id="board-title" class="board-title"></h2>
 
     <div class="viewport" id="viewport">
       <div class="bracket-scale" id="bracket-scale">
@@ -132,11 +155,20 @@
 <!-- リーグの記録欄 -->
 <div class="overlay" id="record-overlay" hidden>
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="rec-title">
-    <h3 id="rec-title">対戦の記録</h3>
+    <div class="dialog-head">
+      <h3 id="rec-title">対戦の記録</h3>
+      <button type="button" id="rec-close" class="icon-btn" title="閉じる"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
     <div class="rec-players">
-      <div class="rec-row"><span class="rec-name" id="rec-name-a"></span><input type="number" id="rec-score-a" class="input rec-score" min="0" step="1" placeholder="-" aria-label="左側のスコア"></div>
+      <div class="rec-row">
+        <span class="rec-name" id="rec-name-a"></span>
+        <input type="number" id="rec-score-a" class="input rec-score" min="0" step="1" placeholder="-" aria-label="左側のスコア">
+      </div>
       <div class="rec-vs">対</div>
-      <div class="rec-row"><span class="rec-name" id="rec-name-b"></span><input type="number" id="rec-score-b" class="input rec-score" min="0" step="1" placeholder="-" aria-label="右側のスコア"></div>
+      <div class="rec-row">
+        <span class="rec-name" id="rec-name-b"></span>
+        <input type="number" id="rec-score-b" class="input rec-score" min="0" step="1" placeholder="-" aria-label="右側のスコア">
+      </div>
     </div>
     <div class="rec-btns">
       <button type="button" id="rec-win-a" class="btn"></button>
@@ -144,8 +176,7 @@
       <button type="button" id="rec-win-b" class="btn"></button>
     </div>
     <div class="rec-foot">
-      <button type="button" id="rec-clear" class="btn small danger-ghost">未記録に戻す</button>
-      <button type="button" id="rec-close" class="btn small">閉じる</button>
+      <button type="button" id="rec-clear" class="btn small danger">未記録に戻す</button>
     </div>
   </div>
 </div>

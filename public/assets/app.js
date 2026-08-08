@@ -342,7 +342,7 @@ function computeLayout(br, hasThird) {
   const R = br.rounds.length;
   const finalPos = pos[br.rounds[R - 1][0].id];
   const champ = { x: finalPos.x + MATCH_W + COL_GAP, cy: finalPos.cy };
-  const width = champ.x + 190;
+  const width = champ.x + 210;
 
   if (hasThird) {
     const top = height + THIRD_GAP;
@@ -625,9 +625,9 @@ function renderBracket() {
   const champ = document.createElement('div');
   champ.className = 'champion';
   champ.style.left = layout.champ.x + 'px';
-  champ.style.top = (layout.champ.cy - 22) + 'px';
-  champ.innerHTML = `<span class="cup">🏆</span><span><span class="label">優勝</span><br>${
-    finalInfo.winner ? escapeHtml(nameOf(finalInfo.winner)) : '—'}</span>`;
+  champ.style.top = (layout.champ.cy - 28) + 'px';
+  champ.innerHTML = '<span class="label">優勝</span><span class="who"></span>';
+  $('.who', champ).textContent = finalInfo.winner ? nameOf(finalInfo.winner) : '—';
   dom.bracket.appendChild(champ);
 
   applyZoom();
@@ -1293,37 +1293,37 @@ function buildSvg() {
 
   const parts = [];
   parts.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
-  parts.push(`<text x="${W / 2}" y="26" text-anchor="middle" font-size="20" font-weight="bold" fill="#1d2430">${escapeXml(state.title)}</text>`);
+  parts.push(`<text x="${W / 2}" y="27" text-anchor="middle" font-size="21" font-family="serif" letter-spacing="1" fill="#17191c">${escapeXml(state.title)}</text>`);
 
   for (const { d, done } of connectorPaths(br, info, layout, OY)) {
-    parts.push(`<path d="${d}" fill="none" stroke="${done ? '#16a34a' : '#b9c3d6'}" stroke-width="2"/>`);
+    parts.push(`<path d="${d}" fill="none" stroke="${done ? '#1c6b47' : '#d2cec6'}" stroke-width="1.5"/>`);
   }
 
   br.rounds.forEach((round, r) => {
     const x = layout.pos[round[0].id].x;
-    parts.push(`<text x="${x + MATCH_W / 2}" y="${OY + 14}" text-anchor="middle" font-size="12" font-weight="bold" fill="#6b7688">${escapeXml(br.labels[r])}</text>`);
+    parts.push(`<text x="${x + MATCH_W / 2}" y="${OY + 14}" text-anchor="middle" font-size="11" font-weight="bold" letter-spacing="1.6" fill="#7b7f86">${escapeXml(br.labels[r])}</text>`);
   });
 
   const tag = (text, x, y, center) => parts.push(
-    `<text x="${center ? x + MATCH_W / 2 : x}" y="${y}"${center ? ' text-anchor="middle"' : ''} font-size="11" font-weight="bold" fill="#6b7688">${escapeXml(text)}</text>`);
+    `<text x="${center ? x + MATCH_W / 2 : x}" y="${y}"${center ? ' text-anchor="middle"' : ''} font-size="11" font-weight="bold" letter-spacing="1.2" fill="#a8acb2">${escapeXml(text)}</text>`);
 
   const drawCard = (mi) => {
     const nd = mi.node;
     const p = layout.pos[nd.id];
     const y = p.top + OY;
-    parts.push(`<rect x="${p.x}" y="${y}" width="${MATCH_W}" height="${p.h}" rx="8" fill="#ffffff" stroke="#b9c3d6"${nd.third ? ' stroke-dasharray="5 4"' : ''}/>`);
+    parts.push(`<rect x="${p.x}" y="${y}" width="${MATCH_W}" height="${p.h}" rx="5" fill="#ffffff" stroke="#d2cec6"${nd.third ? ' stroke-dasharray="5 4"' : ''}/>`);
     if (mi.players.length === 2) {
-      parts.push(`<line x1="${p.x}" y1="${y + SLOT_H}" x2="${p.x + MATCH_W}" y2="${y + SLOT_H}" stroke="#d9dfeb"/>`);
+      parts.push(`<line x1="${p.x}" y1="${y + SLOT_H}" x2="${p.x + MATCH_W}" y2="${y + SLOT_H}" stroke="#e7e4de"/>`);
     }
     mi.players.forEach((pid, i) => {
       const sy = y + i * SLOT_H;
       const isWin = pid && nd.kind === 'match' && pid === mi.winner;
       const isLose = pid && mi.winner && pid !== mi.winner;
       const label = pid ? nameOf(pid) : '未定';
-      if (isWin) parts.push(`<rect x="${p.x + 1}" y="${sy + (i === 0 ? 1 : 0)}" width="${MATCH_W - 2}" height="${SLOT_H - 1}" fill="#e8f7ee"/>`);
-      const color = isWin ? '#10692f' : isLose ? '#94a3b8' : pid ? '#1d2430' : '#a8b1c1';
+      if (isWin) parts.push(`<rect x="${p.x + 1}" y="${sy + (i === 0 ? 1 : 0)}" width="${MATCH_W - 2}" height="${SLOT_H - 1}" fill="#ecf4ef"/>`);
+      const color = isWin ? '#12583a' : isLose ? '#a8acb2' : pid ? '#17191c' : '#a8acb2';
       parts.push(`<text x="${p.x + 24}" y="${sy + SLOT_H / 2 + 5}" font-size="14" fill="${color}"${isWin ? ' font-weight="bold"' : ''}${isLose ? ' text-decoration="line-through"' : ''}>${escapeXml(truncate(label, 15))}</text>`);
-      if (isWin) parts.push(`<text x="${p.x + 8}" y="${sy + SLOT_H / 2 + 5}" font-size="12" fill="#16a34a">✔</text>`);
+      if (isWin) parts.push(`<text x="${p.x + 8}" y="${sy + SLOT_H / 2 + 5}" font-size="11" fill="#1c6b47">✔</text>`);
       const score = state.results[nd.id]?.s?.[pid];
       if (state.showScore && pid && score !== undefined) {
         parts.push(`<text x="${p.x + MATCH_W - 10}" y="${sy + SLOT_H / 2 + 5}" text-anchor="end" font-size="13" fill="${color}">${escapeXml(score)}</text>`);
@@ -1347,9 +1347,9 @@ function buildSvg() {
   const finalInfo = info[br.rounds[br.rounds.length - 1][0].id];
   const cx = layout.champ.x;
   const cy = layout.champ.cy + OY;
-  parts.push(`<rect x="${cx}" y="${cy - 24}" width="180" height="48" rx="10" fill="#fffbe9" stroke="#d9a300" stroke-width="2"/>`);
-  parts.push(`<text x="${cx + 14}" y="${cy - 6}" font-size="10" font-weight="bold" fill="#d9a300">優勝</text>`);
-  parts.push(`<text x="${cx + 14}" y="${cy + 14}" font-size="15" font-weight="bold" fill="#1d2430">${escapeXml(truncate(finalInfo.winner ? nameOf(finalInfo.winner) : '—', 13))}</text>`);
+  parts.push(`<rect x="${cx}" y="${cy - 28}" width="190" height="56" rx="5" fill="#ffffff" stroke="#8a6a1f"/>`);
+  parts.push(`<text x="${cx + 16}" y="${cy - 8}" font-size="10" font-weight="bold" letter-spacing="2.2" fill="#8a6a1f">優勝</text>`);
+  parts.push(`<text x="${cx + 16}" y="${cy + 16}" font-size="18" font-family="serif" fill="#17191c">${escapeXml(truncate(finalInfo.winner ? nameOf(finalInfo.winner) : '—', 12))}</text>`);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="sans-serif">${parts.join('')}</svg>`;
 }
