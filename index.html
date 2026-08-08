@@ -3,19 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>トーナメント表メーカー</title>
-<meta name="description" content="参加者名を入れるだけでトーナメント表を作成。クリックで勝敗を記録できます。">
+<title>対戦表メーカー</title>
+<meta name="description" content="参加者名を入れるだけでトーナメント表・リーグ表を作成。クリックで勝敗を記録できます。">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🏆</text></svg>">
 </head>
 <body>
 
 <header class="topbar">
-  <h1 class="brand">🏆 トーナメント表メーカー</h1>
+  <h1 class="brand">🏆 対戦表メーカー</h1>
   <div class="topbar-actions">
     <button type="button" id="btn-toggle-panel" class="btn ghost">設定パネル</button>
   </div>
 </header>
+
+<!-- 共有URLで開いたときだけ表示する -->
+<div class="view-banner" id="view-banner" hidden>
+  <span>この対戦表は<b>共有された時点のもの</b>です。最新の状況は主催者に確認してください。</span>
+  <a class="btn small" href="./">自分で作る</a>
+</div>
 
 <div class="layout">
 
@@ -32,11 +38,11 @@
         <h2>参加者 <span class="badge" id="player-count">0</span></h2>
         <div class="row-actions">
           <button type="button" id="btn-shuffle" class="btn small" title="組み合わせを抽選します">🎲 抽選</button>
-          <button type="button" id="btn-clear-players" class="btn small danger-ghost">全消去</button>
         </div>
       </div>
 
       <ul class="player-list" id="player-list"></ul>
+      <p class="hint" id="size-warning" hidden></p>
 
       <form id="add-form" class="add-row">
         <input type="text" id="add-input" class="input" placeholder="参加者名を入力して Enter" autocomplete="off">
@@ -55,14 +61,30 @@
 
     <section class="card">
       <h2>形式</h2>
-      <p class="hint">参加者リストの<b>並び順がそのまま配置</b>になります。上から順に2人ずつ対戦し、<b>リストの下にいる人</b>が不戦勝（シード）になります。</p>
       <label class="field">
-        <span>1回戦の不戦勝（シード）</span>
-        <select id="bye-count" class="input"></select>
+        <span>対戦の形式</span>
+        <select id="format" class="input">
+          <option value="tournament">トーナメント（勝ち抜き）</option>
+          <option value="league">リーグ（総当たり）</option>
+        </select>
       </label>
-      <p class="hint" id="bye-hint"></p>
-      <label class="check"><input type="checkbox" id="opt-third"> 3位決定戦を行う</label>
-      <p class="hint">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
+
+      <div id="tournament-opts">
+        <p class="hint">参加者リストの<b>並び順がそのまま配置</b>になります。上から順に2人ずつ対戦し、<b>リストの下にいる人</b>が不戦勝（シード）になります。</p>
+        <label class="field">
+          <span>1回戦の不戦勝（シード）</span>
+          <select id="bye-count" class="input"></select>
+        </label>
+        <p class="hint" id="bye-hint"></p>
+        <label class="check"><input type="checkbox" id="opt-third"> 3位決定戦を行う</label>
+        <p class="hint">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
+      </div>
+
+      <div id="league-opts" hidden>
+        <p class="hint">全員が1回ずつ対戦します。順位は<b>勝点（勝3・分1・敗0）→ 得失点差 → 総得点</b>の順に比較して決めます。</p>
+        <p class="hint" id="league-hint"></p>
+      </div>
+
       <label class="check"><input type="checkbox" id="opt-score"> スコアを記録する</label>
       <label class="field">
         <span>表示倍率 <b id="zoom-label">100%</b></span>
@@ -73,35 +95,59 @@
     <section class="card">
       <h2>保存 / 書き出し</h2>
       <div class="grid-btns">
-        <button type="button" id="btn-share" class="btn">🔗 URLをコピー</button>
+        <button type="button" id="btn-share" class="btn">🔗 共有URLをコピー</button>
         <button type="button" id="btn-export-json" class="btn">💾 JSON保存</button>
         <button type="button" id="btn-import-json" class="btn">📂 JSON読込</button>
         <button type="button" id="btn-export-png" class="btn">🖼 PNG保存</button>
         <button type="button" id="btn-export-svg" class="btn">🖼 SVG保存</button>
         <button type="button" id="btn-print" class="btn">🖨 印刷 / PDF</button>
       </div>
+      <p class="hint">共有URLには<b>参加者名を含む対戦表の内容がすべて入ります</b>。URLを知っている人は誰でも閲覧できます。受け取った人は閲覧のみで、記録はできません。</p>
       <input type="file" id="file-json" accept="application/json,.json" hidden>
       <div class="row-actions end mt">
         <button type="button" id="btn-reset-results" class="btn small danger-ghost">勝敗をリセット</button>
+        <button type="button" id="btn-new" class="btn small danger-ghost">新しい大会</button>
       </div>
     </section>
 
-    <p class="foot-hint">操作方法：トーナメント表の名前を<b>クリック</b>すると勝者になります。もう一度クリックで取り消せます。</p>
+    <p class="foot-hint" id="foot-hint"></p>
   </aside>
 
-  <!-- ========== 右：トーナメント表 ========== -->
+  <!-- ========== 右：対戦表 ========== -->
   <main class="main">
     <div id="board-title" class="board-title"></div>
 
     <div class="viewport" id="viewport">
       <div class="bracket-scale" id="bracket-scale">
         <div class="bracket" id="bracket" aria-label="トーナメント表"></div>
+        <div class="league" id="league" hidden aria-label="リーグ表"></div>
       </div>
-      <p class="empty-msg" id="empty-msg">参加者を2名以上追加すると、トーナメント表が表示されます。</p>
+      <p class="empty-msg" id="empty-msg">参加者を2名以上追加すると、対戦表が表示されます。</p>
     </div>
 
     <section class="results" id="results"></section>
   </main>
+</div>
+
+<!-- リーグの記録欄 -->
+<div class="overlay" id="record-overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="rec-title">
+    <h3 id="rec-title">対戦の記録</h3>
+    <div class="rec-players">
+      <div class="rec-row"><span class="rec-name" id="rec-name-a"></span><input type="number" id="rec-score-a" class="input rec-score" min="0" step="1" placeholder="-" aria-label="左側のスコア"></div>
+      <div class="rec-vs">対</div>
+      <div class="rec-row"><span class="rec-name" id="rec-name-b"></span><input type="number" id="rec-score-b" class="input rec-score" min="0" step="1" placeholder="-" aria-label="右側のスコア"></div>
+    </div>
+    <div class="rec-btns">
+      <button type="button" id="rec-win-a" class="btn"></button>
+      <button type="button" id="rec-draw" class="btn">引き分け</button>
+      <button type="button" id="rec-win-b" class="btn"></button>
+    </div>
+    <div class="rec-foot">
+      <button type="button" id="rec-clear" class="btn small danger-ghost">未記録に戻す</button>
+      <button type="button" id="rec-close" class="btn small">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
