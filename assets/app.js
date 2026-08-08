@@ -1467,9 +1467,21 @@ function bindEvents() {
   window.addEventListener('resize', applyZoom);
 }
 
+/**
+ * Service Worker を登録して、通信が切れてもリロードできるようにする（要件 7.4）。
+ * file:// で直接開いた場合や未対応ブラウザでは登録できないが、動作には影響しない。
+ */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* 登録できなくても続行する */ });
+  });
+}
+
 /* ===========================================================
  * 起動
  * =========================================================== */
 load();
 bindEvents();
 render();
+registerServiceWorker();

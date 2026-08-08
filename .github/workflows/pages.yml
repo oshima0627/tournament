@@ -1,0 +1,39 @@
+name: Deploy to GitHub Pages
+
+# 静的ファイルだけのサイトなので、ビルドせずそのまま公開する。
+# 初回のみ、リポジトリの Settings > Pages で Source を "GitHub Actions" に設定すること。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開は同時に1つだけ走らせる。進行中のものは中断しない
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - name: 公開するファイルをまとめる
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # index.html / assets / sw.js を含むリポジトリ全体を公開する
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
