@@ -41,6 +41,7 @@ function createDefaultState() {
     version: 1,
     title: 'トーナメント表',
     players,          // [{id, name}] この並び順がそのままブラケットの配置になる
+    byes: 'min',      // 1回戦の不戦勝の人数: 'min' | 'full' | 数値
     thirdPlace: true,
     showScore: false,
     zoom: 100,
@@ -79,10 +80,15 @@ function sanitize(raw) {
     }
   }
 
+  const byes = raw.byes === 'full' || Number.isFinite(Number(raw.byes))
+    ? (raw.byes === 'full' ? 'full' : Math.max(0, Math.floor(Number(raw.byes))))
+    : 'min';
+
   return {
     version: 1,
     title: typeof raw.title === 'string' ? raw.title : base.title,
     players,
+    byes,
     thirdPlace: !!raw.thirdPlace,
     showScore: !!raw.showScore,
     zoom: clamp(Number(raw.zoom) || 100, 40, 150),
@@ -106,25 +112,62 @@ function entrantIds() {
   return state.players.map((p) => p.id);
 }
 
+/**
+ * 1回戦の不戦勝として選べる人数の一覧。
+ * 残りが2人ずつ組めないといけないので、参加人数と同じ偶奇の値だけが選べる。
+ */
+function byeChoices(n) {
+  const out = [];
+  for (let b = n % 2; b <= n - 2; b += 2) out.push(b);
+  return out;
+}
+
+/** 2の累乗の枠にきれいに収まる不戦勝の人数 */
+function fullByeCount(n) {
+  let size = 2;
+  while (size < n) size *= 2;
+  return size - n;
+}
+
+/** 設定から実際の不戦勝の人数を決める（人数が変わっても破綻しないよう丸める） */
+function byeCount(n) {
+  const choices = byeChoices(n);
+  if (!choices.length) return 0;
+  if (state.byes === 'min') return choices[0];
+  if (state.byes === 'full') return fullByeCount(n);
+  const want = Number(state.byes);
+  if (!Number.isFinite(want)) return choices[0];
+  return choices.reduce((best, c) => (Math.abs(c - want) < Math.abs(best - want) ? c : best), choices[0]);
+}
+
 function buildBracket(ids) {
   const n = ids.length;
   if (n < 2) return null;
 
   const rounds = [];
 
-  // 1回戦：上から2人ずつ組み、奇数なら最後の1人がシード
+  // 1回戦：上から2人ずつ対戦、リストの下の b 人が不戦勝（シード）
+  const b = byeCount(n);
+  const matchCount = (n - b) / 2;
+  const total = matchCount + b;
+
+  // シードは縦方向に散らして配置する（最後は必ず一番下になる）
+  const seedSlots = new Set();
+  for (let i = 0; i < b; i++) seedSlots.add(Math.ceil(((i + 1) * total) / b) - 1);
+
   const first = [];
-  for (let i = 0; i + 1 < n; i += 2) {
-    first.push({
-      id: `0-${first.length}`, round: 0, index: first.length, kind: 'match',
-      src: [{ t: 'p', v: ids[i] }, { t: 'p', v: ids[i + 1] }],
-    });
-  }
-  if (n % 2 === 1) {
-    first.push({
-      id: `0-${first.length}`, round: 0, index: first.length, kind: 'seed',
-      src: [{ t: 'p', v: ids[n - 1] }],
-    });
+  let np = 0;                 // 対戦に入れる参加者の位置
+  let ns = n - b;             // シードに入れる参加者の位置
+  for (let slot = 0; slot < total; slot++) {
+    const id = `0-${first.length}`;
+    if (seedSlots.has(slot)) {
+      first.push({ id, round: 0, index: first.length, kind: 'seed', src: [{ t: 'p', v: ids[ns++] }] });
+    } else {
+      first.push({
+        id, round: 0, index: first.length, kind: 'match',
+        src: [{ t: 'p', v: ids[np++] }, { t: 'p', v: ids[np++] }],
+      });
+    }
   }
   rounds.push(first);
 
@@ -147,7 +190,7 @@ function buildBracket(ids) {
     rounds.push(cur);
   }
 
-  return { rounds, n, labels: roundLabels(rounds) };
+  return { rounds, n, byes: b, labels: roundLabels(rounds) };
 }
 
 /** 各ラウンドの名前（決勝／準決勝／準々決勝／n回戦） */
@@ -257,10 +300,11 @@ function computeLayout(br, hasThird) {
   const { MATCH_W, MATCH_H, COL_GAP, V_GAP, LABEL_H, THIRD_GAP } = LAYOUT;
   const pos = {};
 
-  // 1回戦は上から順に並べる
+  // 1回戦は上から順に並べる（シードは「シード」ラベルの分だけ余白を足す）
   let y = LABEL_H;
   for (const nd of br.rounds[0]) {
     const h = nodeHeight(nd);
+    if (nd.kind === 'seed') y += 8;
     pos[nd.id] = { x: 0, top: y, cy: y + h / 2, h };
     y += h + V_GAP;
   }
@@ -322,9 +366,50 @@ function render() {
   save();
 }
 
+/** 不戦勝の人数の選択肢を、そのときの参加人数に合わせて作り直す */
+function syncByeSelect() {
+  const sel = $('#bye-count');
+  const hint = $('#bye-hint');
+  const n = state.players.length;
+  sel.innerHTML = '';
+
+  if (n < 2) {
+    sel.disabled = true;
+    hint.textContent = '';
+    return;
+  }
+  sel.disabled = false;
+
+  const choices = byeChoices(n);
+  const min = choices[0];
+  const full = fullByeCount(n);
+  const actual = byeCount(n);
+
+  for (const b of choices) {
+    const note = [];
+    if (b === min) note.push('最少');
+    if (b === full) note.push('2の累乗の枠');
+    const opt = document.createElement('option');
+    opt.value = b === min ? 'min' : b === full ? 'full' : String(b);
+    opt.textContent = `${b}名${note.length ? `（${note.join('・')}）` : ''}`;
+    if (b === actual) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  // 選択中の値を、いま実際に使われている人数に合わせておく
+  const cur = actual === min ? 'min' : actual === full ? 'full' : String(actual);
+  sel.value = cur;
+  state.byes = cur;
+
+  const matches = (n - actual) / 2;
+  hint.textContent = actual === 0
+    ? `1回戦は${matches}試合。全員が1回戦から出場します。`
+    : `1回戦は${matches}試合。リスト下位の${actual}名が1回戦を免除されます。`;
+}
+
 function syncControls() {
   $('#title').value = state.title;
   $('#player-count').textContent = state.players.length;
+  syncByeSelect();
   $('#opt-third').checked = state.thirdPlace;
   $('#opt-score').checked = state.showScore;
   $('#zoom').value = state.zoom;
@@ -967,6 +1052,11 @@ function bindEvents() {
     if (!state.players.length || !confirm('参加者をすべて削除しますか？')) return;
     state.players = [];
     state.results = {};
+    render();
+  });
+
+  $('#bye-count').addEventListener('change', (e) => {
+    state.byes = e.target.value === 'min' || e.target.value === 'full' ? e.target.value : Number(e.target.value);
     render();
   });
 
