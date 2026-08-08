@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>トーナメント表メーカー</title>
+<meta name="description" content="参加者名を入れるだけでトーナメント表を作成。クリックで勝敗を記録できます。">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🏆</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <h1 class="brand">🏆 トーナメント表メーカー</h1>
+  <div class="topbar-actions">
+    <button type="button" id="btn-toggle-panel" class="btn ghost">設定パネル</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ========== 左：設定パネル ========== -->
+  <aside class="panel" id="panel">
+
+    <section class="card">
+      <h2>大会名</h2>
+      <input type="text" id="title" class="input" placeholder="第1回 社内大会" autocomplete="off">
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>参加者 <span class="badge" id="player-count">0</span></h2>
+        <div class="row-actions">
+          <button type="button" id="btn-shuffle" class="btn small" title="組み合わせを抽選します">🎲 抽選</button>
+          <button type="button" id="btn-clear-players" class="btn small danger-ghost">全消去</button>
+        </div>
+      </div>
+
+      <ul class="player-list" id="player-list"></ul>
+
+      <form id="add-form" class="add-row">
+        <input type="text" id="add-input" class="input" placeholder="参加者名を入力して Enter" autocomplete="off">
+        <button type="submit" class="btn primary">追加</button>
+      </form>
+
+      <details class="bulk">
+        <summary>まとめて入力 / 貼り付け</summary>
+        <p class="hint">1行に1名。カンマ区切りにも対応しています。</p>
+        <textarea id="bulk-text" class="input textarea" rows="7" placeholder="Aチーム&#10;Bチーム&#10;Cチーム"></textarea>
+        <div class="row-actions end">
+          <button type="button" id="btn-bulk-apply" class="btn primary small">この内容で作成</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>形式</h2>
+      <p class="hint">参加者リストの<b>並び順がそのまま配置</b>になります。上にいるほど強いシード扱いで、人数が2の累乗でないときは自動的に1回戦免除（不戦勝）になります。</p>
+      <label class="check"><input type="checkbox" id="opt-third"> 3位決定戦を行う</label>
+      <label class="check"><input type="checkbox" id="opt-score"> スコアを記録する</label>
+      <label class="field">
+        <span>表示倍率 <b id="zoom-label">100%</b></span>
+        <input type="range" id="zoom" min="40" max="150" step="5" value="100">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>保存 / 書き出し</h2>
+      <div class="grid-btns">
+        <button type="button" id="btn-share" class="btn">🔗 URLをコピー</button>
+        <button type="button" id="btn-export-json" class="btn">💾 JSON保存</button>
+        <button type="button" id="btn-import-json" class="btn">📂 JSON読込</button>
+        <button type="button" id="btn-export-png" class="btn">🖼 PNG保存</button>
+        <button type="button" id="btn-export-svg" class="btn">🖼 SVG保存</button>
+        <button type="button" id="btn-print" class="btn">🖨 印刷 / PDF</button>
+      </div>
+      <input type="file" id="file-json" accept="application/json,.json" hidden>
+      <div class="row-actions end mt">
+        <button type="button" id="btn-reset-results" class="btn small danger-ghost">勝敗をリセット</button>
+      </div>
+    </section>
+
+    <p class="foot-hint">操作方法：トーナメント表の名前を<b>クリック</b>すると勝者になります。もう一度クリックで取り消せます。</p>
+  </aside>
+
+  <!-- ========== 右：トーナメント表 ========== -->
+  <main class="main">
+    <div id="board-title" class="board-title"></div>
+
+    <div class="viewport" id="viewport">
+      <div class="bracket-scale" id="bracket-scale">
+        <div class="bracket" id="bracket" aria-label="トーナメント表"></div>
+      </div>
+      <p class="empty-msg" id="empty-msg">参加者を2名以上追加すると、トーナメント表が表示されます。</p>
+    </div>
+
+    <section class="results" id="results"></section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
