@@ -201,6 +201,7 @@ h1, h2 { margin: 0; font-weight: 700; }
   overflow: hidden;
 }
 .match.third { border-style: dashed; }
+.match.seed { background: #fbfcfe; }
 .match-tag {
   position: absolute;
   font-size: 11px;
@@ -208,6 +209,8 @@ h1, h2 { margin: 0; font-weight: 700; }
   color: var(--muted);
   letter-spacing: .06em;
 }
+/* 不戦勝ラベルは線の上に中央寄せで置く */
+.match-tag.center { width: var(--match-w); text-align: center; }
 
 .slot {
   display: flex;
@@ -255,7 +258,7 @@ h1, h2 { margin: 0; font-weight: 700; }
 .slot.win .mark { color: var(--win); }
 .slot.lose { color: var(--lose); }
 .slot.lose .nm { text-decoration: line-through; }
-.slot.empty, .slot.bye { color: #a8b1c1; cursor: default; background: #fafbfd; }
+.slot.empty { color: #a8b1c1; cursor: default; background: #fafbfd; }
 .slot.disabled { cursor: default; }
 
 .champion {

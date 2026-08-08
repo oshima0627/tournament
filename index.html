@@ -55,8 +55,9 @@
 
     <section class="card">
       <h2>形式</h2>
-      <p class="hint">参加者リストの<b>並び順がそのまま配置</b>になります。上にいるほど強いシード扱いで、人数が2の累乗でないときは自動的に1回戦免除（不戦勝）になります。</p>
+      <p class="hint">参加者リストの<b>並び順がそのまま配置</b>になります（上から2人ずつ対戦）。人数が奇数で1人余ったときは、<b>リストの一番下の人だけ</b>がそのラウンドを不戦勝で通過します。</p>
       <label class="check"><input type="checkbox" id="opt-third"> 3位決定戦を行う</label>
+      <p class="hint">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
       <label class="check"><input type="checkbox" id="opt-score"> スコアを記録する</label>
       <label class="field">
         <span>表示倍率 <b id="zoom-label">100%</b></span>

@@ -1,6 +1,7 @@
 /* ===========================================================
  * トーナメント表メーカー
- * - 参加者は何名でもOK（2の累乗でない場合は自動でシード／不戦勝）
+ * - 参加者は何名でもOK。各ラウンドで上から2人ずつ組み、
+ *   余った1人だけがそのラウンドを不戦勝で通過する
  * - 名前をクリックするだけで勝敗を記録
  * - localStorage / URL / JSON / PNG / SVG / 印刷 に対応
  * 依存ライブラリなし・ビルド不要
@@ -9,7 +10,6 @@
 
 /* ---------- 小さなユーティリティ ---------- */
 const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const escapeXml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
@@ -21,7 +21,7 @@ const newId = () => 'p' + (++_uid).toString(36) + Math.random().toString(36).sli
 const LAYOUT = {
   MATCH_W: 210,   // 対戦カードの幅
   SLOT_H: 36,     // 1名分の高さ
-  V_GAP: 22,      // 1回戦のカード同士の縦の間隔
+  V_GAP: 22,      // カード同士の縦の間隔
   COL_GAP: 64,    // ラウンド間の横の間隔
   LABEL_H: 26,    // ラウンド名の高さ
   THIRD_GAP: 46,  // 3位決定戦を置くための余白
@@ -44,7 +44,7 @@ function createDefaultState() {
     thirdPlace: true,
     showScore: false,
     zoom: 100,
-    results: {},      // matchId -> { w: playerId|null, s: { playerId: number } }
+    results: {},      // nodeId -> { w: playerId|null, s: { playerId: number } }
   };
 }
 
@@ -92,190 +92,203 @@ function sanitize(raw) {
 
 /* ===========================================================
  * ブラケットの構築
+ *
+ * 各ラウンドは「そのラウンドに残っている枠」の一覧。
+ * 上から2つずつ組んで対戦（match）にし、奇数で1つ余ったら
+ * その1つだけが不戦勝で次のラウンドへ通過する（seed / pass）。
+ *   kind: 'match' … 2人が戦うカード
+ *         'seed'  … 1回戦で余った1人（カードに名前だけ表示）
+ *         'pass'  … 2回戦以降で余った1人（線だけで次のラウンドへ）
  * =========================================================== */
 
-/**
- * サイズ size のトーナメントにおける「スロット順のシード番号」を返す。
- * 例) size=8 -> [1,8,4,5,2,7,3,6]（強いシード同士が決勝まで当たらない標準配置）
- */
-function seedSlots(size) {
-  let arr = [1];
-  while (arr.length < size) {
-    const n = arr.length * 2;
-    const next = [];
-    for (const s of arr) {
-      next.push(s);
-      next.push(n + 1 - s);
-    }
-    arr = next;
-  }
-  return arr;
-}
-
-/** ブラケットに入れる参加者IDの配列（リストの並び順＝シード順） */
+/** ブラケットに入れる参加者IDの配列（リストの並び順＝配置順） */
 function entrantIds() {
   return state.players.map((p) => p.id);
 }
 
-/**
- * トーナメントの骨組みを作る。
- * 参加者が2の累乗でない場合、上位シードが自動的に1回戦免除（不戦勝）になる。
- */
 function buildBracket(ids) {
   const n = ids.length;
   if (n < 2) return null;
 
-  let size = 2;
-  while (size < n) size *= 2;
-
-  const slotPlayers = seedSlots(size).map((seed) => (seed <= n ? ids[seed - 1] : null));
-
   const rounds = [];
+
+  // 1回戦：上から2人ずつ組み、奇数なら最後の1人がシード
   const first = [];
-  for (let i = 0; i < size / 2; i++) {
+  for (let i = 0; i + 1 < n; i += 2) {
     first.push({
-      id: `0-${i}`, round: 0, index: i,
-      src: [{ t: 'p', v: slotPlayers[i * 2] }, { t: 'p', v: slotPlayers[i * 2 + 1] }],
+      id: `0-${first.length}`, round: 0, index: first.length, kind: 'match',
+      src: [{ t: 'p', v: ids[i] }, { t: 'p', v: ids[i + 1] }],
+    });
+  }
+  if (n % 2 === 1) {
+    first.push({
+      id: `0-${first.length}`, round: 0, index: first.length, kind: 'seed',
+      src: [{ t: 'p', v: ids[n - 1] }],
     });
   }
   rounds.push(first);
 
+  // 2回戦以降：勝者を上から2つずつ組み、余った1つは不戦勝で通過
   for (let r = 1; rounds[r - 1].length > 1; r++) {
     const prev = rounds[r - 1];
     const cur = [];
-    for (let i = 0; i < prev.length / 2; i++) {
+    for (let i = 0; i + 1 < prev.length; i += 2) {
       cur.push({
-        id: `${r}-${i}`, round: r, index: i,
-        src: [{ t: 'm', v: prev[i * 2].id }, { t: 'm', v: prev[i * 2 + 1].id }],
+        id: `${r}-${cur.length}`, round: r, index: cur.length, kind: 'match',
+        src: [{ t: 'n', v: prev[i].id }, { t: 'n', v: prev[i + 1].id }],
+      });
+    }
+    if (prev.length % 2 === 1) {
+      cur.push({
+        id: `${r}-${cur.length}`, round: r, index: cur.length, kind: 'pass',
+        src: [{ t: 'n', v: prev[prev.length - 1].id }],
       });
     }
     rounds.push(cur);
   }
 
-  return { rounds, size, n };
+  return { rounds, n, labels: roundLabels(rounds) };
 }
 
-/**
- * 記録済みの勝敗を反映して各試合の出場者・勝者・敗者を確定させる。
- * 参加者の入れ替えなどで無効になった結果はここで自動的に破棄する。
- */
+/** 各ラウンドの名前（決勝／準決勝／準々決勝／n回戦） */
+function roundLabels(rounds) {
+  const R = rounds.length;
+  return rounds.map((round, r) => {
+    const matches = round.filter((nd) => nd.kind === 'match').length;
+    if (r === R - 1) return '決勝';
+    if (r === R - 2 && matches === 2) return '準決勝';
+    if (r === R - 3 && matches === 4) return '準々決勝';
+    return `${r + 1}回戦`;
+  });
+}
+
 /**
  * 出場者が変わって無効になった記録を整理する。
  * 勝者だけを取り消し、その試合に関係なくなったスコアも捨てる。
  * 記録が空になったら削除する。
  */
-function pruneResult(matchId, players) {
-  const rec = state.results[matchId];
+function pruneResult(nodeId, players) {
+  const rec = state.results[nodeId];
   if (!rec) return null;
   if (rec.w && !players.includes(rec.w)) rec.w = null;
   if (rec.s) {
     for (const pid of Object.keys(rec.s)) if (!players.includes(pid)) delete rec.s[pid];
   }
   if (!rec.w && (!rec.s || Object.keys(rec.s).length === 0)) {
-    delete state.results[matchId];
+    delete state.results[nodeId];
     return null;
   }
   return rec;
 }
 
+/** 記録済みの勝敗を反映して、各枠の出場者・勝者・敗者を確定させる */
 function resolveBracket(br) {
   const info = {};
 
   for (const round of br.rounds) {
-    for (const m of round) {
-      const players = m.src.map((s) => (s.t === 'p' ? s.v : (info[s.v] ? info[s.v].winner : null)));
-      const present = players.filter(Boolean);
-      const stored = pruneResult(m.id, present);
-
+    for (const nd of round) {
+      const players = nd.src.map((s) => (s.t === 'p' ? s.v : (info[s.v] ? info[s.v].winner : null)));
       let winner = null;
-      let bye = false;
+      let loser = null;
 
-      if (present.length === 2) {
-        if (stored && stored.w) winner = stored.w;
-      } else if (m.round === 0 && present.length === 1) {
-        // 1回戦で相手がいない場合のみ不戦勝で自動的に勝ち上がる
-        winner = present[0];
-        bye = true;
+      if (nd.kind === 'match') {
+        const present = players.filter(Boolean);
+        const stored = pruneResult(nd.id, present);
+        if (present.length === 2 && stored && stored.w) {
+          winner = stored.w;
+          loser = players.find((p) => p && p !== winner) || null;
+        }
+      } else {
+        winner = players[0] || null;   // シード／不戦勝はそのまま通過
+        delete state.results[nd.id];   // 対戦ではないので勝敗の記録は持たない
       }
 
-      const loser = winner && present.length === 2 ? players.find((p) => p && p !== winner) : null;
-      info[m.id] = { match: m, players, winner, loser, bye, decided: !!winner };
+      info[nd.id] = { node: nd, players, winner, loser };
     }
   }
 
-  // 3位決定戦（準決勝の敗者同士）
+  /* 3位決定戦
+   * 決勝に上がってくる2つの枠が「どちらも対戦」なら準決勝の敗者が2人いるので試合を組む。
+   * 片方が不戦勝で上がってきた場合は準決勝の敗者が1人しかいないため、その人が自動的に第3位。 */
   let third = null;
+  let autoThird = null;
   const R = br.rounds.length;
-  if (state.thirdPlace && R >= 2) {
-    const sf = br.rounds[R - 2];
-    const players = [info[sf[0].id].loser || null, info[sf[1].id].loser || null];
+  const finalNode = br.rounds[R - 1][0];
+  const feeders = finalNode.src.map((s) => (s.t === 'n' ? info[s.v] : null));
+  const semis = feeders.filter((f) => f && f.node.kind === 'match');
+
+  if (semis.length === 2) {
+    const players = semis.map((f) => f.loser || null);
     const present = players.filter(Boolean);
+    // 3位決定戦がOFFのときも記録は残す（ONに戻したときに復活させるため）
     const stored = pruneResult('tp', present);
-    const winner = present.length === 2 && stored && stored.w ? stored.w : null;
-    const loser = winner ? players.find((p) => p && p !== winner) : null;
-    const match = { id: 'tp', round: R - 1, index: 0, third: true, src: [] };
-    third = { match, players, winner, loser, bye: false, decided: !!winner };
-    info.tp = third;
+    if (state.thirdPlace) {
+      const winner = present.length === 2 && stored && stored.w ? stored.w : null;
+      const loser = winner ? players.find((p) => p && p !== winner) || null : null;
+      const node = { id: 'tp', round: R - 1, index: 0, kind: 'match', third: true, src: [] };
+      third = { node, players, winner, loser };
+      info.tp = third;
+    }
+  } else {
+    delete state.results.tp;   // 3位決定戦が成立しない形なので記録も持たない
+    if (semis.length === 1) autoThird = semis[0].loser || null;
   }
 
-  // 現在のブラケットに存在しない試合の記録は捨てる
+  // 現在のブラケットに存在しない枠の記録は捨てる
   // （人数が減ったあとも古い結果が残り続けるのを防ぐ。3位決定戦はON/OFFで消えないよう残す）
-  const valid = new Set(br.rounds.flat().map((m) => m.id));
+  const valid = new Set(br.rounds.flat().map((nd) => nd.id));
   valid.add('tp');
   for (const id of Object.keys(state.results)) if (!valid.has(id)) delete state.results[id];
 
-  return { info, third };
+  return { info, third, autoThird, semis };
 }
 
 /* ===========================================================
- * 座標計算（HTML描画・SVG書き出しで共用）
+ * 座標計算（画面描画・画像書き出しで共用）
  * =========================================================== */
 
+function nodeHeight(nd) {
+  if (nd.kind === 'match') return LAYOUT.MATCH_H;
+  if (nd.kind === 'seed') return LAYOUT.SLOT_H;
+  return 0;                       // pass はカードを描かない（線だけ）
+}
+
 function computeLayout(br, hasThird) {
-  const { MATCH_W, MATCH_H, SLOT_H, V_GAP, COL_GAP, LABEL_H, THIRD_GAP } = LAYOUT;
+  const { MATCH_W, MATCH_H, COL_GAP, V_GAP, LABEL_H, THIRD_GAP } = LAYOUT;
   const pos = {};
 
-  br.rounds.forEach((round, r) => {
-    round.forEach((m, i) => {
+  // 1回戦は上から順に並べる
+  let y = LABEL_H;
+  for (const nd of br.rounds[0]) {
+    const h = nodeHeight(nd);
+    pos[nd.id] = { x: 0, top: y, cy: y + h / 2, h };
+    y += h + V_GAP;
+  }
+  let height = y - V_GAP;
+
+  // 2回戦以降は「前の枠の中点」に置く
+  for (let r = 1; r < br.rounds.length; r++) {
+    for (const nd of br.rounds[r]) {
       const x = r * (MATCH_W + COL_GAP);
-      let cy;
-      if (r === 0) {
-        cy = LABEL_H + i * (MATCH_H + V_GAP) + MATCH_H / 2;
-      } else {
-        const a = pos[br.rounds[r - 1][i * 2].id].cy;
-        const b = pos[br.rounds[r - 1][i * 2 + 1].id].cy;
-        cy = (a + b) / 2;
-      }
-      pos[m.id] = { x, cy, top: cy - MATCH_H / 2 };
-    });
-  });
+      const h = nodeHeight(nd);
+      const cs = nd.src.map((s) => pos[s.v].cy);
+      const cy = cs.reduce((a, b) => a + b, 0) / cs.length;
+      pos[nd.id] = { x, top: cy - h / 2, cy, h };
+    }
+  }
 
-  const rounds = br.rounds.length;
-  let width = rounds * MATCH_W + (rounds - 1) * COL_GAP;
-  let height = LABEL_H + br.rounds[0].length * (MATCH_H + V_GAP) - V_GAP;
-
-  // 優勝カードは決勝の右側に置く
-  const finalPos = pos[br.rounds[rounds - 1][0].id];
+  const R = br.rounds.length;
+  const finalPos = pos[br.rounds[R - 1][0].id];
   const champ = { x: finalPos.x + MATCH_W + COL_GAP, cy: finalPos.cy };
-  width = champ.x + 190;
+  const width = champ.x + 190;
 
   if (hasThird) {
-    const x = finalPos.x;
     const top = height + THIRD_GAP;
-    pos.tp = { x, cy: top + MATCH_H / 2, top };
+    pos.tp = { x: finalPos.x, top, cy: top + MATCH_H / 2, h: MATCH_H };
     height = top + MATCH_H;
   }
 
-  return { pos, width, height, champ, slotH: SLOT_H, matchW: MATCH_W, matchH: MATCH_H };
-}
-
-/** ラウンド名（決勝／準決勝／準々決勝／n回戦） */
-function roundLabel(r, total) {
-  const fromEnd = total - 1 - r;
-  if (fromEnd === 0) return '決勝';
-  if (fromEnd === 1) return '準決勝';
-  if (fromEnd === 2) return '準々決勝';
-  return `${r + 1}回戦`;
+  return { pos, width, height, champ };
 }
 
 /* ===========================================================
@@ -290,11 +303,15 @@ const dom = {
   boardTitle: $('#board-title'),
 };
 
-let current = null; // { br, info, third, layout } 直近の描画結果（書き出しで再利用）
+let current = null; // { br, info, third, feeders, layout } 直近の描画結果（書き出しで再利用）
 
 function nameOf(id) {
   const p = state.players.find((x) => x.id === id);
   return p ? p.name : '';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 function render() {
@@ -341,8 +358,7 @@ function renderPlayerList() {
 
 /* ---------- トーナメント表 ---------- */
 function renderBracket() {
-  const ids = entrantIds();
-  const br = buildBracket(ids);
+  const br = buildBracket(entrantIds());
   dom.bracket.innerHTML = '';
 
   if (!br) {
@@ -353,9 +369,9 @@ function renderBracket() {
   }
   dom.emptyMsg.hidden = true;
 
-  const { info, third } = resolveBracket(br);
+  const { info, third, autoThird, semis } = resolveBracket(br);
   const layout = computeLayout(br, !!third);
-  current = { br, info, third, layout };
+  current = { br, info, third, autoThird, semis, layout };
 
   dom.bracket.style.width = layout.width + 'px';
   dom.bracket.style.height = layout.height + 'px';
@@ -378,24 +394,30 @@ function renderBracket() {
   br.rounds.forEach((round, r) => {
     const label = document.createElement('div');
     label.className = 'round-label';
-    label.textContent = roundLabel(r, br.rounds.length);
+    label.textContent = br.labels[r];
     label.style.left = layout.pos[round[0].id].x + 'px';
     label.style.top = '0px';
     dom.bracket.appendChild(label);
   });
 
-  // 対戦カード
+  // 各枠
   for (const round of br.rounds) {
-    for (const m of round) dom.bracket.appendChild(matchEl(info[m.id], layout));
+    for (const nd of round) {
+      const p = layout.pos[nd.id];
+      if (nd.kind === 'pass') {
+        // カードは描かず「不戦勝」とだけ表示する
+        dom.bracket.appendChild(tagEl('不戦勝', p.x, p.cy - 22, true));
+        continue;
+      }
+      if (nd.kind === 'seed') dom.bracket.appendChild(tagEl('シード', p.x, p.top - 20, false));
+      dom.bracket.appendChild(matchEl(info[nd.id], layout));
+    }
   }
+
+  // 3位決定戦
   if (third) {
     const tp = layout.pos.tp;
-    const tag = document.createElement('div');
-    tag.className = 'match-tag';
-    tag.textContent = '3位決定戦';
-    tag.style.left = tp.x + 'px';
-    tag.style.top = (tp.top - 20) + 'px';
-    dom.bracket.appendChild(tag);
+    dom.bracket.appendChild(tagEl('3位決定戦', tp.x, tp.top - 20, false));
     dom.bracket.appendChild(matchEl(third, layout));
   }
 
@@ -412,79 +434,96 @@ function renderBracket() {
   applyZoom();
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/** カードの外に置く小さなラベル */
+function tagEl(text, x, top, center) {
+  const tag = document.createElement('div');
+  tag.className = 'match-tag' + (center ? ' center' : '');
+  tag.textContent = text;
+  tag.style.left = x + 'px';
+  tag.style.top = top + 'px';
+  return tag;
 }
 
-/** 対戦カード1枚を作る */
+/** カード1枚（対戦 or シード）を作る */
 function matchEl(mi, layout) {
-  const p = layout.pos[mi.match.id];
+  const nd = mi.node;
+  const p = layout.pos[nd.id];
   const box = document.createElement('div');
-  box.className = 'match' + (mi.match.third ? ' third' : '');
+  box.className = 'match' + (nd.third ? ' third' : '') + (nd.kind === 'seed' ? ' seed' : '');
   box.style.left = p.x + 'px';
   box.style.top = p.top + 'px';
 
-  mi.players.forEach((pid, slot) => {
+  const selectable = nd.kind === 'match' && mi.players.filter(Boolean).length === 2;
+
+  mi.players.forEach((pid) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    const isWinner = pid && pid === mi.winner;
+    const isWinner = pid && nd.kind === 'match' && pid === mi.winner;
     const isLoser = pid && mi.winner && pid !== mi.winner;
-    const selectable = !!pid && mi.players.filter(Boolean).length === 2;
 
     btn.className = 'slot'
       + (isWinner ? ' win' : '')
       + (isLoser ? ' lose' : '')
-      + (!pid ? (mi.bye ? ' bye' : ' empty') : '')
+      + (pid ? '' : ' empty')
       + (selectable ? '' : ' disabled');
 
-    const label = pid ? nameOf(pid) : (mi.bye ? '不戦勝' : '未定');
-    btn.innerHTML = `<span class="mark">${isWinner ? '✔' : ''}</span><span class="nm"></span>`;
+    const label = pid ? nameOf(pid) : '未定';
+    btn.innerHTML = '<span class="mark"></span><span class="nm"></span>';
+    $('.mark', btn).textContent = isWinner ? '✔' : '';
     $('.nm', btn).textContent = label;
-    btn.title = pid ? `${label} を勝者にする` : '';
+    btn.title = selectable && pid ? `${label} を勝者にする` : '';
 
-    if (state.showScore && pid) {
+    if (state.showScore && pid && nd.kind === 'match') {
       const input = document.createElement('input');
       input.type = 'number';
       input.className = 'score';
-      input.value = (state.results[mi.match.id]?.s?.[pid] ?? '');
+      input.value = (state.results[nd.id]?.s?.[pid] ?? '');
       input.placeholder = '-';
       input.setAttribute('aria-label', `${label} のスコア`);
       input.addEventListener('click', (e) => e.stopPropagation());
-      input.addEventListener('change', () => setScore(mi.match.id, pid, input.value));
+      input.addEventListener('change', () => setScore(nd.id, pid, input.value));
       btn.appendChild(input);
     }
 
-    if (selectable) btn.addEventListener('click', () => toggleWinner(mi.match.id, pid));
+    if (selectable) btn.addEventListener('click', () => toggleWinner(nd.id, pid));
     box.appendChild(btn);
   });
 
   return box;
 }
 
-/** ラウンド間の接続線（dy: 縦方向のオフセット。画像書き出しで使う） */
+/** 枠と枠をつなぐ線（dy: 縦方向のオフセット。画像書き出しで使う） */
 function connectorPaths(br, info, layout, dy = 0) {
   const out = [];
-  const { MATCH_W } = LAYOUT;
+  const { MATCH_W, COL_GAP } = LAYOUT;
+
   for (let r = 1; r < br.rounds.length; r++) {
-    for (const m of br.rounds[r]) {
-      const parent = layout.pos[m.id];
-      const midX = parent.x - LAYOUT.COL_GAP / 2;
-      for (const src of m.src) {
+    for (const nd of br.rounds[r]) {
+      const self = layout.pos[nd.id];
+      const midX = self.x - COL_GAP / 2;
+      for (const src of nd.src) {
         const child = layout.pos[src.v];
-        const done = !!(info[src.v] && info[src.v].winner);
         out.push({
-          d: `M ${child.x + MATCH_W} ${child.cy + dy} H ${midX} V ${parent.cy + dy} H ${parent.x}`,
-          done,
+          d: `M ${child.x + MATCH_W} ${child.cy + dy} H ${midX} V ${self.cy + dy} H ${self.x}`,
+          done: !!(info[src.v] && info[src.v].winner),
+        });
+      }
+      // 不戦勝の枠はカードがないので、列を横切る線でつなぐ
+      if (nd.kind === 'pass') {
+        out.push({
+          d: `M ${self.x} ${self.cy + dy} H ${self.x + MATCH_W}`,
+          done: !!info[nd.id].winner,
         });
       }
     }
   }
+
   // 決勝 → 優勝カード
-  const finalMatch = br.rounds[br.rounds.length - 1][0];
-  const fp = layout.pos[finalMatch.id];
+  const finalNode = br.rounds[br.rounds.length - 1][0];
+  const fp = layout.pos[finalNode.id];
   out.push({
     d: `M ${fp.x + MATCH_W} ${fp.cy + dy} H ${layout.champ.x}`,
-    done: !!info[finalMatch.id].winner,
+    done: !!info[finalNode.id].winner,
   });
   return out;
 }
@@ -494,7 +533,7 @@ function renderResults() {
   dom.results.innerHTML = '';
   if (!current) return;
 
-  const { br, info, third } = current;
+  const { br, info, third, autoThird, semis } = current;
   const R = br.rounds.length;
   const finalInfo = info[br.rounds[R - 1][0].id];
 
@@ -502,30 +541,29 @@ function renderResults() {
   const podium = document.createElement('div');
   podium.className = 'podium';
   const items = [
-    ['優勝', finalInfo.winner, 'p1'],
-    ['準優勝', finalInfo.loser, 'p2'],
+    ['優勝', finalInfo.winner ? nameOf(finalInfo.winner) : null],
+    ['準優勝', finalInfo.loser ? nameOf(finalInfo.loser) : null],
   ];
-  if (R >= 2) {
-    if (state.thirdPlace) {
-      items.push(['第3位', third && third.winner, 'p3']);
-    } else {
-      const sf = br.rounds[R - 2];
-      const losers = [info[sf[0].id].loser, info[sf[1].id].loser].filter(Boolean);
-      items.push(['ベスト4', losers.length ? losers.map(nameOf).join(' / ') : null, 'p3']);
-    }
+  if (third) {
+    items.push(['第3位', third.winner ? nameOf(third.winner) : null]);
+  } else if (semis.length === 1) {
+    items.push(['第3位', autoThird ? nameOf(autoThird) : null]);
+  } else if (semis.length === 2) {
+    const losers = semis.map((f) => f.loser).filter(Boolean);
+    items.push(['ベスト4', losers.length ? losers.map(nameOf).join(' / ') : null]);
   }
-  for (const [rank, who, cls] of items) {
+  items.forEach(([rank, who], i) => {
     const div = document.createElement('div');
-    div.className = 'podium-item ' + cls;
-    const name = !who ? '—' : (typeof who === 'string' && state.players.some((p) => p.id === who) ? nameOf(who) : who);
-    div.innerHTML = `<div class="rank">${rank}</div><div class="who"></div>`;
-    $('.who', div).textContent = name;
+    div.className = `podium-item p${i + 1}`;
+    div.innerHTML = '<div class="rank"></div><div class="who"></div>';
+    $('.rank', div).textContent = rank;
+    $('.who', div).textContent = who || '—';
     podium.appendChild(div);
-  }
+  });
   dom.results.appendChild(podium);
 
   // 戦績表
-  const stats = computeStats(br, info, third);
+  const stats = computeStats(br, info, third, autoThird);
   const wrap = document.createElement('div');
   wrap.className = 'table-wrap';
   const table = document.createElement('table');
@@ -551,25 +589,28 @@ function renderResults() {
 }
 
 /** 参加者ごとの勝敗と最終状況を集計する */
-function computeStats(br, info, third) {
+function computeStats(br, info, third, autoThird) {
   const R = br.rounds.length;
   const stats = new Map();
   for (const p of state.players) {
-    stats.set(p.id, { id: p.id, name: p.name, win: 0, lose: 0, lostRound: null, status: '出場中', statusClass: 'alive', rankKey: 0 });
+    stats.set(p.id, {
+      id: p.id, name: p.name, win: 0, lose: 0, lostRound: null,
+      status: '出場中', statusClass: 'alive', rankKey: 5,
+    });
   }
 
-  const all = br.rounds.flat().map((m) => info[m.id]);
+  const all = br.rounds.flat().filter((nd) => nd.kind === 'match').map((nd) => info[nd.id]);
   if (third) all.push(third);
 
   for (const mi of all) {
     if (!mi.winner) continue;
     const w = stats.get(mi.winner);
-    if (w && !mi.bye) w.win++;             // 不戦勝は勝ち数に数えない
+    if (w) w.win++;
     if (mi.loser) {
       const l = stats.get(mi.loser);
       if (l) {
         l.lose++;
-        if (!mi.match.third) l.lostRound = mi.match.round;
+        if (!mi.node.third) l.lostRound = mi.node.round;
       }
     }
   }
@@ -580,14 +621,12 @@ function computeStats(br, info, third) {
       s.status = '優勝'; s.statusClass = 'champ'; s.rankKey = 0;
     } else if (finalInfo.loser === s.id) {
       s.status = '準優勝'; s.statusClass = ''; s.rankKey = 1;
-    } else if (third && third.winner === s.id) {
+    } else if ((third && third.winner === s.id) || (!third && autoThird === s.id)) {
       s.status = '第3位'; s.statusClass = ''; s.rankKey = 2;
     } else if (s.lostRound !== null) {
-      s.status = `${roundLabel(s.lostRound, R)}敗退`;
+      s.status = `${br.labels[s.lostRound]}敗退`;
       s.statusClass = '';
       s.rankKey = 10 + (R - s.lostRound);
-    } else {
-      s.status = '出場中'; s.statusClass = 'alive'; s.rankKey = 5;
     }
   }
 
@@ -599,24 +638,25 @@ function computeStats(br, info, third) {
  * 操作
  * =========================================================== */
 
-function toggleWinner(matchId, playerId) {
-  const cur = state.results[matchId];
+function toggleWinner(nodeId, playerId) {
+  const cur = state.results[nodeId];
   if (cur && cur.w === playerId) {
-    delete state.results[matchId];        // 同じ人をもう一度押したら取り消し
+    delete state.results[nodeId];         // 同じ人をもう一度押したら取り消し
+    if (cur.s && Object.keys(cur.s).length) state.results[nodeId] = { w: null, s: cur.s };
   } else {
-    state.results[matchId] = { w: playerId, s: (cur && cur.s) || {} };
+    state.results[nodeId] = { w: playerId, s: (cur && cur.s) || {} };
   }
   renderBracket();
   renderResults();
   save();
 }
 
-function setScore(matchId, playerId, value) {
-  const rec = state.results[matchId] || (state.results[matchId] = { w: null, s: {} });
+function setScore(nodeId, playerId, value) {
+  const rec = state.results[nodeId] || (state.results[nodeId] = { w: null, s: {} });
   rec.s = rec.s || {};
   if (value === '' || value === null) delete rec.s[playerId];
   else rec.s[playerId] = Number(value);
-  if (!rec.w && Object.keys(rec.s).length === 0) delete state.results[matchId];
+  if (!rec.w && Object.keys(rec.s).length === 0) delete state.results[nodeId];
   save();
 }
 
@@ -786,10 +826,15 @@ function importJson(file) {
 }
 
 /* ---------- 画像書き出し（自前でSVGを組み立てる） ---------- */
+function truncate(s, n) {
+  const str = String(s);
+  return str.length > n ? str.slice(0, n - 1) + '…' : str;
+}
+
 function buildSvg() {
   if (!current) return null;
   const { br, info, third, layout } = current;
-  const { MATCH_W, MATCH_H, SLOT_H } = LAYOUT;
+  const { MATCH_W, SLOT_H } = LAYOUT;
   const W = layout.width;
   const H = layout.height + 46;
   const OY = 40; // タイトル分の余白
@@ -804,33 +849,49 @@ function buildSvg() {
 
   br.rounds.forEach((round, r) => {
     const x = layout.pos[round[0].id].x;
-    parts.push(`<text x="${x + MATCH_W / 2}" y="${OY + 14}" text-anchor="middle" font-size="12" font-weight="bold" fill="#6b7688">${escapeXml(roundLabel(r, br.rounds.length))}</text>`);
+    parts.push(`<text x="${x + MATCH_W / 2}" y="${OY + 14}" text-anchor="middle" font-size="12" font-weight="bold" fill="#6b7688">${escapeXml(br.labels[r])}</text>`);
   });
 
-  const drawMatch = (mi, tag) => {
-    const p = layout.pos[mi.match.id];
+  const tag = (text, x, y, center) => parts.push(
+    `<text x="${center ? x + MATCH_W / 2 : x}" y="${y}"${center ? ' text-anchor="middle"' : ''} font-size="11" font-weight="bold" fill="#6b7688">${escapeXml(text)}</text>`);
+
+  const drawCard = (mi) => {
+    const nd = mi.node;
+    const p = layout.pos[nd.id];
     const y = p.top + OY;
-    if (tag) parts.push(`<text x="${p.x}" y="${y - 6}" font-size="11" font-weight="bold" fill="#6b7688">${escapeXml(tag)}</text>`);
-    parts.push(`<rect x="${p.x}" y="${y}" width="${MATCH_W}" height="${MATCH_H}" rx="8" fill="#ffffff" stroke="#b9c3d6"${mi.match.third ? ' stroke-dasharray="5 4"' : ''}/>`);
-    parts.push(`<line x1="${p.x}" y1="${y + SLOT_H}" x2="${p.x + MATCH_W}" y2="${y + SLOT_H}" stroke="#d9dfeb"/>`);
+    const h = p.h;
+    parts.push(`<rect x="${p.x}" y="${y}" width="${MATCH_W}" height="${h}" rx="8" fill="#ffffff" stroke="#b9c3d6"${nd.third ? ' stroke-dasharray="5 4"' : ''}/>`);
+    if (mi.players.length === 2) {
+      parts.push(`<line x1="${p.x}" y1="${y + SLOT_H}" x2="${p.x + MATCH_W}" y2="${y + SLOT_H}" stroke="#d9dfeb"/>`);
+    }
     mi.players.forEach((pid, i) => {
       const sy = y + i * SLOT_H;
-      const isWin = pid && pid === mi.winner;
+      const isWin = pid && nd.kind === 'match' && pid === mi.winner;
       const isLose = pid && mi.winner && pid !== mi.winner;
-      const label = pid ? nameOf(pid) : (mi.bye ? '不戦勝' : '未定');
+      const label = pid ? nameOf(pid) : '未定';
       if (isWin) parts.push(`<rect x="${p.x + 1}" y="${sy + (i === 0 ? 1 : 0)}" width="${MATCH_W - 2}" height="${SLOT_H - 1}" fill="#e8f7ee"/>`);
       const color = isWin ? '#10692f' : isLose ? '#94a3b8' : pid ? '#1d2430' : '#a8b1c1';
       parts.push(`<text x="${p.x + 24}" y="${sy + SLOT_H / 2 + 5}" font-size="14" fill="${color}"${isWin ? ' font-weight="bold"' : ''}${isLose ? ' text-decoration="line-through"' : ''}>${escapeXml(truncate(label, 15))}</text>`);
       if (isWin) parts.push(`<text x="${p.x + 8}" y="${sy + SLOT_H / 2 + 5}" font-size="12" fill="#16a34a">✔</text>`);
-      const score = state.results[mi.match.id]?.s?.[pid];
+      const score = state.results[nd.id]?.s?.[pid];
       if (state.showScore && pid && score !== undefined) {
         parts.push(`<text x="${p.x + MATCH_W - 10}" y="${sy + SLOT_H / 2 + 5}" text-anchor="end" font-size="13" fill="${color}">${escapeXml(score)}</text>`);
       }
     });
   };
 
-  for (const round of br.rounds) for (const m of round) drawMatch(info[m.id], null);
-  if (third) drawMatch(third, '3位決定戦');
+  for (const round of br.rounds) {
+    for (const nd of round) {
+      const p = layout.pos[nd.id];
+      if (nd.kind === 'pass') { tag('不戦勝', p.x, p.cy + OY - 8, true); continue; }
+      if (nd.kind === 'seed') tag('シード', p.x, p.top + OY - 7, false);
+      drawCard(info[nd.id]);
+    }
+  }
+  if (third) {
+    tag('3位決定戦', layout.pos.tp.x, layout.pos.tp.top + OY - 7, false);
+    drawCard(third);
+  }
 
   const finalInfo = info[br.rounds[br.rounds.length - 1][0].id];
   const cx = layout.champ.x;
@@ -840,11 +901,6 @@ function buildSvg() {
   parts.push(`<text x="${cx + 14}" y="${cy + 14}" font-size="15" font-weight="bold" fill="#1d2430">${escapeXml(truncate(finalInfo.winner ? nameOf(finalInfo.winner) : '—', 13))}</text>`);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="sans-serif">${parts.join('')}</svg>`;
-}
-
-function truncate(s, n) {
-  const str = String(s);
-  return str.length > n ? str.slice(0, n - 1) + '…' : str;
 }
 
 function exportSvg() {
