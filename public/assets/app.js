@@ -47,11 +47,12 @@ function createDefaultState() {
   const names = ['Aチーム', 'Bチーム', 'Cチーム', 'Dチーム', 'Eチーム', 'Fチーム'];
   const players = names.map((name) => ({ id: newId(), name }));
   return {
-    version: 2,
+    version: 3,
     title: '対戦表',
     players,                 // [{id, name}] この並び順がそのまま配置になる
     format: 'tournament',    // 'tournament' | 'league'
-    byes: 'min',             // 1回戦の不戦勝の人数: 'min' | 'full' | 数値
+    byes: 'full',            // 1回戦の不戦勝の人数: 'min' | 'full' | 数値
+                             // 既定は 'full'（2の累乗の枠）。2回戦以降に不戦勝が出ない形になる
     thirdPlace: true,
     showScore: false,
     zoom: 100,
@@ -69,8 +70,12 @@ function createEmptyState() {
 
 let state = createDefaultState();
 
-/** 保存された値を安全に取り込む（壊れたデータで落ちないように） */
-function sanitize(raw) {
+/**
+ * 保存された値を安全に取り込む（壊れたデータで落ちないように）。
+ * migrate=true のときだけ、既定値を変えた項目を新しい既定に寄せる。
+ * 共有URLや読み込んだJSONは「そのときの形」を保つべきなので寄せない。
+ */
+function sanitize(raw, { migrate = false } = {}) {
   const base = createDefaultState();
   if (!raw || typeof raw !== 'object') return base;
 
@@ -98,12 +103,17 @@ function sanitize(raw) {
     }
   }
 
-  const byes = raw.byes === 'full' || Number.isFinite(Number(raw.byes))
+  let byes = raw.byes === 'full' || Number.isFinite(Number(raw.byes))
     ? (raw.byes === 'full' ? 'full' : Math.max(0, Math.floor(Number(raw.byes))))
     : 'min';
 
+  // 不戦勝の既定を「最少」から「2の累乗の枠」に変えた（版数3）。
+  // まだ勝敗を入れていない保存データだけ新しい既定に寄せる。
+  // 勝敗が入っている場合は表の形が変わって記録がずれるため、そのままにする
+  if (migrate && Number(raw.version || 0) < 3 && Object.keys(results).length === 0) byes = 'full';
+
   return {
-    version: 2,
+    version: 3,
     title: typeof raw.title === 'string' ? raw.title : base.title,
     players,
     format: raw.format === 'league' ? 'league' : 'tournament',
@@ -504,23 +514,33 @@ function syncByeSelect() {
   const full = fullByeCount(n);
   const actual = byeCount(n);
 
+  // 「標準（2の累乗の枠）」と「最少」が同じ人数になることがある（4名・8名など）。
+  // そのときは標準として扱う。最少を優先すると、その人数を経由しただけで
+  // 設定が最少に書き換わり、次の人数から形が崩れてしまう
+  const valueOf = (b) => (b === full ? 'full' : b === min ? 'min' : String(b));
+
   for (const b of choices) {
     const note = [];
-    if (b === min) note.push('最少');
-    if (b === full) note.push('2の累乗の枠');
+    if (b === full) note.push('標準');
+    if (b === min && b !== full) note.push('最少');
     const opt = document.createElement('option');
-    opt.value = b === min ? 'min' : b === full ? 'full' : String(b);
+    opt.value = valueOf(b);
     opt.textContent = `${b}名${note.length ? `（${note.join('・')}）` : ''}`;
     sel.appendChild(opt);
   }
-  const cur = actual === min ? 'min' : actual === full ? 'full' : String(actual);
-  sel.value = cur;
-  state.byes = cur;
+  sel.value = valueOf(actual);
+  // 選べる値が1つしかない人数では、設定そのものは書き換えない
+  if (choices.length > 1) state.byes = sel.value;
 
   const matches = (n - actual) / 2;
-  hint.textContent = actual === 0
-    ? `1回戦は${matches}試合。全員が1回戦から出場します。`
-    : `1回戦は${matches}試合。リスト下位の${actual}名が1回戦を免除されます。`;
+  if (actual === 0) {
+    hint.textContent = `1回戦は${matches}試合。全員が1回戦から出場します。`;
+  } else if (actual === full) {
+    hint.textContent = `1回戦は${matches}試合。リスト下位の${actual}名は2回戦から出場し、2回戦以降に不戦勝は出ません。`;
+  } else {
+    hint.textContent = `1回戦は${matches}試合。リスト下位の${actual}名は2回戦から出場します。`
+      + '途中のラウンドでも不戦勝が出ることがあります。';
+  }
 }
 
 /* ---------- 参加者リスト ---------- */
@@ -1271,7 +1291,7 @@ function load() {
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = sanitize(JSON.parse(raw));
+    if (raw) state = sanitize(JSON.parse(raw), { migrate: true });
   } catch (_) { /* 壊れていたら初期値のまま */ }
 }
 
