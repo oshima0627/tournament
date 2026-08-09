@@ -62,14 +62,15 @@ npx wrangler deploy
 
 **GitHub から自動公開する場合**
 
-`.github/workflows/deploy.yml` を用意してあるので、既定ブランチに push すれば公開されます。事前に **Settings → Secrets and variables → Actions** で次の2つを登録してください。未登録のあいだは公開をスキップするだけで、ワークフローは失敗しません。
+Cloudflare ダッシュボードの Workers で GitHub リポジトリを接続します（Workers Builds）。設定は次のとおり。
 
-| 名前 | 取得元 |
+| 項目 | 値 |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare ダッシュボード → My Profile → API Tokens。テンプレート「Edit Cloudflare Workers」で作成 |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare ダッシュボードのURL、または Workers の概要ページに表示される |
+| Project name | `tournament`（`wrangler.jsonc` の `name` と一致させること） |
+| Build command | 空欄（ビルドは不要） |
+| Deploy command | `npx wrangler deploy` |
 
-公開先は `taisenhyo.<サブドメイン>.workers.dev` になります。名前は `wrangler.jsonc` の `name` で変更できます。
+接続すると、本番ブランチへの push で自動的に公開されます。公開先は `tournament.<サブドメイン>.workers.dev` です。名前は `wrangler.jsonc` の `name` で変更できます（**ダッシュボード側の Project name と必ず揃えること**）。
 
 ## デザイン方針
 

@@ -78,6 +78,6 @@
 
 ## 公開
 
-Cloudflare Workers（静的アセット）で公開する。設定は `wrangler.jsonc`、自動公開は `.github/workflows/deploy.yml`。
+Cloudflare Workers（静的アセット）で公開する。設定は `wrangler.jsonc`。
 
-**初回のみ**、リポジトリの Settings > Secrets and variables > Actions で `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を登録する必要がある（この操作はコードからは行えない）。手順は README を参照。
+自動公開は Cloudflare ダッシュボードから GitHub リポジトリを接続して行う（Workers Builds）。**ダッシュボードの Project name と `wrangler.jsonc` の `name` は必ず一致させること。**食い違うと別名の Worker が作られる。手順は README を参照。

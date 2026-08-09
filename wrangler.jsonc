@@ -7,7 +7,7 @@
   //
   // 将来リアルタイム共有を足したくなったら、この設定に main（Worker スクリプト）と
   // Durable Objects のバインディングを追加すればよい。配信先は変えなくて済む。
-  "name": "taisenhyo",
+  "name": "tournament",
   "compatibility_date": "2026-08-08",
   "assets": {
     "directory": "./public"
