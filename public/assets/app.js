@@ -26,8 +26,11 @@ const LAYOUT = {
   COL_GAP: 64,    // ラウンド間の横の間隔
   LABEL_H: 26,    // ラウンド名の高さ
   THIRD_GAP: 46,  // 3位決定戦を置くための余白
+  BORDER: 1,      // カードの枠線。実際の描画高さに含まれるので計算にも入れる
 };
-LAYOUT.MATCH_H = LAYOUT.SLOT_H * 2;
+// 枠線を数え落とすと、カードが計算より数px高くなって表全体がはみ出す
+LAYOUT.MATCH_H = LAYOUT.SLOT_H * 2 + LAYOUT.BORDER * 2;
+LAYOUT.SEED_H = LAYOUT.SLOT_H + LAYOUT.BORDER * 2;
 
 const STORAGE_KEY = 'tournament-maker:v1';
 const MAX_PLAYERS = 32;          // 動作保証の上限（要件 7.2）
@@ -310,7 +313,7 @@ function resolveBracket(br) {
 
 function nodeHeight(nd) {
   if (nd.kind === 'match') return LAYOUT.MATCH_H;
-  if (nd.kind === 'seed') return LAYOUT.SLOT_H;
+  if (nd.kind === 'seed') return LAYOUT.SEED_H;
   return 0;                       // pass はカードを描かない（線だけ）
 }
 
@@ -1313,10 +1316,11 @@ function buildSvg() {
     const y = p.top + OY;
     parts.push(`<rect x="${p.x}" y="${y}" width="${MATCH_W}" height="${p.h}" rx="5" fill="#ffffff" stroke="#d2cec6"${nd.third ? ' stroke-dasharray="5 4"' : ''}/>`);
     if (mi.players.length === 2) {
-      parts.push(`<line x1="${p.x}" y1="${y + SLOT_H}" x2="${p.x + MATCH_W}" y2="${y + SLOT_H}" stroke="#e7e4de"/>`);
+      const mid = y + p.h / 2;
+      parts.push(`<line x1="${p.x}" y1="${mid}" x2="${p.x + MATCH_W}" y2="${mid}" stroke="#e7e4de"/>`);
     }
     mi.players.forEach((pid, i) => {
-      const sy = y + i * SLOT_H;
+      const sy = y + LAYOUT.BORDER + i * SLOT_H;
       const isWin = pid && nd.kind === 'match' && pid === mi.winner;
       const isLose = pid && mi.winner && pid !== mi.winner;
       const label = pid ? nameOf(pid) : '未定';

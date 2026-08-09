@@ -326,7 +326,9 @@ input[type="range"] {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  padding: 24px;
+  /* 下だけ1px多い。要素の位置が小数になると scrollHeight が切り上がり、
+     中身が収まっていても不要な縦スクロールバーが出るのを防ぐため */
+  padding: 24px 24px 25px;
   overflow: auto;
 }
 .bracket-scale { transform-origin: top left; }
