@@ -2,8 +2,9 @@
   // Cloudflare Workers（静的アセット）の設定。
   // public/ 以下をそのまま配信するだけで、サーバー側のコードは持たない。
   //
-  // 手元から公開する場合:  npx wrangler deploy
-  // GitHub から自動公開:   .github/workflows/deploy.yml を参照
+  // 手元から公開する場合: npx wrangler deploy
+  // GitHub から自動公開:  Cloudflare ダッシュボードでリポジトリを接続する（Workers Builds）
+  //                       ダッシュボードの Project name は下の name と一致させること
   //
   // 将来リアルタイム共有を足したくなったら、この設定に main（Worker スクリプト）と
   // Durable Objects のバインディングを追加すればよい。配信先は変えなくて済む。
