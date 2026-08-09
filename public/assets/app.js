@@ -532,12 +532,13 @@ function renderPlayerList() {
   state.players.forEach((p, i) => {
     const li = document.createElement('li');
     li.className = 'player-row';
+    const icon = (id) => `<svg class="i" aria-hidden="true"><use href="#${id}"/></svg>`;
     li.innerHTML = `
       <span class="no">${i + 1}</span>
       <input class="input" type="text" value="" aria-label="参加者${i + 1}の名前">
-      <button type="button" class="icon-btn up" title="上へ">↑</button>
-      <button type="button" class="icon-btn down" title="下へ">↓</button>
-      <button type="button" class="icon-btn remove" title="削除">✕</button>`;
+      <button type="button" class="icon-btn up" title="上へ" aria-label="${i + 1}番目を上へ移動">${icon('i-up')}</button>
+      <button type="button" class="icon-btn down" title="下へ" aria-label="${i + 1}番目を下へ移動">${icon('i-down')}</button>
+      <button type="button" class="icon-btn remove" title="削除" aria-label="${i + 1}番目を削除">${icon('i-close')}</button>`;
     const input = $('input', li);
     input.value = p.name;
     input.addEventListener('input', () => { p.name = input.value; renderBoard(); renderResults(); save(); });

@@ -15,7 +15,7 @@
   --surface-2:  #faf9f6;
   --ink:        #17191c;
   --ink-2:      #464a50;
-  --muted:      #7b7f86;
+  --muted:      #6f737a;   /* 白背景で 4.76:1（WCAG AA） */
   --faint:      #a8acb2;
   --line:       #e7e4de;
   --line-2:     #d2cec6;
@@ -190,7 +190,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 select.input {
   appearance: none;
   padding-right: 32px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%237b7f86' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%236f737a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 11px center;
   background-size: 12px;
@@ -337,7 +337,7 @@ input[type="range"] {
   margin: 0;
   padding: 48px 12px;
   text-align: center;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 14px;
 }
 
