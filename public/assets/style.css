@@ -159,7 +159,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 
 .note {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.75;
   color: var(--muted);
@@ -300,27 +300,55 @@ input[type="range"] {
 .icon-btn:hover { color: var(--ink); border-color: var(--line-2); background: var(--surface-2); }
 .icon-btn.remove:hover { color: var(--danger); border-color: #e6d3d6; background: var(--danger-weak); }
 
-.bulk { margin-top: 14px; }
-.bulk summary {
+/* 折りたたみ：普段は1行のリンクに見せ、開いたときだけ中身を出す */
+.fold { margin-top: 14px; }
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 0;
   font-size: 12px;
   color: var(--accent);
   cursor: pointer;
-  width: fit-content;
+  list-style: none;
 }
-.bulk summary::marker { color: var(--faint); }
-.bulk .textarea { margin-top: 8px; font-size: 13px; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-right: 1.4px solid currentColor;
+  border-bottom: 1.4px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform .15s;
+}
+.fold[open] > summary::before { transform: rotate(45deg) translate(-2px, -2px); }
+.fold > summary:hover { color: var(--ink); }
+.fold-body { padding-top: 4px; }
+.fold-body > .field:first-child,
+.fold-body > .check:first-child { margin-top: 8px; }
+.bulk .textarea { font-size: 13px; }
 
 /* ---------- 対戦表 ---------- */
+/* 大会名は見出しの見た目のまま直接書き換える。枠は近づいたときだけ出す */
 .board-title {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: none;
+  color: var(--ink);
   font-family: var(--serif);
   font-size: 26px;
   font-weight: 600;
   letter-spacing: .04em;
   text-align: center;
-  min-height: 1em;
-  padding-top: 4px;
+  text-overflow: ellipsis;
 }
-.board-title:empty::after { content: "無題の大会"; color: var(--faint); }
+.board-title::placeholder { color: var(--faint); font-weight: 400; }
+.board-title:hover { border-color: var(--line); }
+.board-title:focus { outline: none; border-color: var(--accent); background: var(--surface); }
 
 .viewport {
   background: var(--surface);
@@ -698,6 +726,6 @@ table.records .status.champ { color: var(--gold); font-weight: 700; }
   .layout { display: block; padding: 0; max-width: none; }
   .viewport { border: 0; border-radius: 0; padding: 0; overflow: visible; }
   body { background: #fff; }
-  .board-title { font-size: 24px; margin-bottom: 12px; }
+  .board-title { font-size: 24px; margin-bottom: 12px; border: 0; padding: 0; }
   .podium-item { break-inside: avoid; }
 }

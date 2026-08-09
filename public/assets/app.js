@@ -441,7 +441,6 @@ const dom = {
   scale: $('#bracket-scale'),
   emptyMsg: $('#empty-msg'),
   results: $('#results'),
-  boardTitle: $('#board-title'),
 };
 
 let current = null; // 直近の描画結果（画像書き出しで再利用）
@@ -468,7 +467,6 @@ function syncControls() {
   $('#opt-score').checked = state.showScore;
   $('#zoom').value = state.zoom;
   $('#zoom-label').textContent = state.zoom + '%';
-  dom.boardTitle.textContent = state.title;
   document.title = state.title ? `${state.title} | 対戦表メーカー` : '対戦表メーカー';
 
   syncByeSelect();
@@ -478,9 +476,9 @@ function syncControls() {
   warn.hidden = n <= MAX_PLAYERS;
   warn.textContent = `${MAX_PLAYERS}名を超えています。動作保証の対象外です（表示が重くなることがあります）。`;
 
-  $('#league-hint').textContent = n >= 2
-    ? `全${(n * (n - 1)) / 2}試合になります。`
-    : '';
+  $('#format-hint').textContent = isTournament()
+    ? 'リストの並び順がそのまま配置になります。下にいる人が不戦勝（シード）。'
+    : (n >= 2 ? `全員が1回ずつ対戦します（全${(n * (n - 1)) / 2}試合）。` : '全員が1回ずつ対戦します。');
 
   $('#foot-hint').innerHTML = isTournament()
     ? '操作方法：対戦表の名前を<b>タップ</b>すると勝者になります。もう一度タップで取り消せます。'
@@ -1409,7 +1407,6 @@ function toast(msg) {
 function bindEvents() {
   $('#title').addEventListener('input', (e) => {
     state.title = e.target.value;
-    dom.boardTitle.textContent = state.title;
     document.title = state.title ? `${state.title} | 対戦表メーカー` : '対戦表メーカー';
     save();
   });

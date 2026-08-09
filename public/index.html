@@ -45,18 +45,14 @@
 
 <div class="layout">
 
-  <!-- ========== 左：設定 ========== -->
+  <!-- ========== 左：設定 ==========
+       よく使うものだけを常時表示し、それ以外は折りたたむ -->
   <aside class="panel" id="panel">
-
-    <section class="block">
-      <h2 class="block-title">大会名</h2>
-      <input type="text" id="title" class="input" placeholder="第1回 社内大会" autocomplete="off">
-    </section>
 
     <section class="block">
       <div class="block-head">
         <h2 class="block-title">参加者 <span class="count" id="player-count">0</span></h2>
-        <button type="button" id="btn-shuffle" class="btn small" title="組み合わせを抽選します">
+        <button type="button" id="btn-shuffle" class="btn small" title="組み合わせをランダムに入れ替えます">
           <svg class="i" aria-hidden="true"><use href="#i-shuffle"/></svg>抽選
         </button>
       </div>
@@ -66,71 +62,81 @@
 
       <form id="add-form" class="add-row">
         <input type="text" id="add-input" class="input" placeholder="名前を入力して Enter" autocomplete="off">
-        <button type="submit" class="btn primary">
+        <button type="submit" class="btn primary" aria-label="参加者を追加">
           <svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>追加
         </button>
       </form>
 
-      <details class="bulk">
+      <details class="fold bulk">
         <summary>まとめて入力</summary>
-        <p class="note">1行に1名。カンマ区切りにも対応しています。</p>
-        <textarea id="bulk-text" class="input textarea" rows="6" placeholder="Aチーム&#10;Bチーム&#10;Cチーム"></textarea>
-        <div class="row end">
-          <button type="button" id="btn-bulk-apply" class="btn primary small">この内容で作成</button>
+        <div class="fold-body">
+          <textarea id="bulk-text" class="input textarea" rows="6" placeholder="1行に1名。カンマ区切りも可&#10;&#10;Aチーム&#10;Bチーム"></textarea>
+          <div class="row end">
+            <button type="button" id="btn-bulk-apply" class="btn primary small">この内容で作成</button>
+          </div>
         </div>
       </details>
     </section>
 
     <section class="block">
       <h2 class="block-title">形式</h2>
-      <div class="field">
-        <label for="format">対戦の形式</label>
-        <select id="format" class="input">
-          <option value="tournament">トーナメント（勝ち抜き）</option>
-          <option value="league">リーグ（総当たり）</option>
-        </select>
-      </div>
+      <select id="format" class="input" aria-label="対戦の形式">
+        <option value="tournament">トーナメント（勝ち抜き）</option>
+        <option value="league">リーグ（総当たり）</option>
+      </select>
+      <p class="note" id="format-hint"></p>
 
-      <div id="tournament-opts">
-        <p class="note">参加者リストの<b>並び順がそのまま配置</b>になります。上から順に2人ずつ対戦し、<b>リストの下にいる人</b>が不戦勝（シード）になります。</p>
-        <div class="field">
-          <label for="bye-count">1回戦の不戦勝（シード）</label>
-          <select id="bye-count" class="input"></select>
+      <details class="fold" id="detail-opts">
+        <summary>細かい設定</summary>
+        <div class="fold-body">
+          <div id="tournament-opts">
+            <div class="field">
+              <label for="bye-count">1回戦の不戦勝（シード）</label>
+              <select id="bye-count" class="input"></select>
+              <p class="note" id="bye-hint"></p>
+            </div>
+            <label class="check"><input type="checkbox" id="opt-third"><span>3位決定戦を行う</span></label>
+            <p class="note">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
+          </div>
+
+          <div id="league-opts" hidden>
+            <p class="note">順位は<b>勝点（勝3・分1・敗0）→ 得失点差 → 総得点</b>の順に比較します。同じなら同順位で並べます。</p>
+          </div>
+
+          <label class="check"><input type="checkbox" id="opt-score"><span>スコアを記録する</span></label>
+
+          <div class="field">
+            <label for="zoom">表示倍率 <b id="zoom-label">100%</b></label>
+            <input type="range" id="zoom" min="40" max="150" step="5" value="100">
+          </div>
         </div>
-        <p class="note" id="bye-hint"></p>
-        <label class="check"><input type="checkbox" id="opt-third"><span>3位決定戦を行う</span></label>
-        <p class="note">準決勝が2試合そろうときだけ組まれます。片方が不戦勝で決勝に上がる形のときは、準決勝で負けた1人がそのまま第3位になります。</p>
-      </div>
-
-      <div id="league-opts" hidden>
-        <p class="note">全員が1回ずつ対戦します。順位は<b>勝点（勝3・分1・敗0）→ 得失点差 → 総得点</b>の順に比較して決めます。</p>
-        <p class="note" id="league-hint"></p>
-      </div>
-
-      <label class="check"><input type="checkbox" id="opt-score"><span>スコアを記録する</span></label>
-
-      <div class="field">
-        <label for="zoom">表示倍率 <b id="zoom-label">100%</b></label>
-        <input type="range" id="zoom" min="40" max="150" step="5" value="100">
-      </div>
+      </details>
     </section>
 
     <section class="block">
-      <h2 class="block-title">保存 / 書き出し</h2>
+      <h2 class="block-title">共有</h2>
       <div class="btn-grid">
         <button type="button" id="btn-share" class="btn"><svg class="i" aria-hidden="true"><use href="#i-link"/></svg>共有URL</button>
         <button type="button" id="btn-print" class="btn"><svg class="i" aria-hidden="true"><use href="#i-print"/></svg>印刷</button>
-        <button type="button" id="btn-export-json" class="btn"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>JSON保存</button>
-        <button type="button" id="btn-import-json" class="btn"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg>JSON読込</button>
-        <button type="button" id="btn-export-png" class="btn"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>PNG</button>
-        <button type="button" id="btn-export-svg" class="btn"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>SVG</button>
       </div>
-      <p class="note">共有URLには<b>参加者名を含む対戦表の内容がすべて</b>入ります。URLを知っている人は誰でも閲覧できます。受け取った人は閲覧のみで、記録はできません。</p>
-      <input type="file" id="file-json" accept="application/json,.json" hidden>
-      <div class="row end">
-        <button type="button" id="btn-reset-results" class="btn small danger">勝敗をリセット</button>
-        <button type="button" id="btn-new" class="btn small danger">新しい大会</button>
-      </div>
+      <p class="note">受け取った人は<b>閲覧のみ</b>。URLに参加者名が入ります。</p>
+
+      <details class="fold">
+        <summary>その他</summary>
+        <div class="fold-body">
+          <div class="btn-grid">
+            <button type="button" id="btn-export-json" class="btn"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>JSON保存</button>
+            <button type="button" id="btn-import-json" class="btn"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg>JSON読込</button>
+            <button type="button" id="btn-export-png" class="btn"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>PNG</button>
+            <button type="button" id="btn-export-svg" class="btn"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>SVG</button>
+          </div>
+          <input type="file" id="file-json" accept="application/json,.json" hidden>
+          <div class="row end">
+            <button type="button" id="btn-reset-results" class="btn small danger">勝敗をリセット</button>
+            <button type="button" id="btn-new" class="btn small danger">新しい大会</button>
+          </div>
+        </div>
+      </details>
     </section>
 
     <p class="panel-foot" id="foot-hint"></p>
@@ -138,7 +144,8 @@
 
   <!-- ========== 右：対戦表 ========== -->
   <main class="main">
-    <h2 id="board-title" class="board-title"></h2>
+    <!-- 大会名は見出しをそのまま書き換える -->
+    <input type="text" id="title" class="board-title" placeholder="大会名を入力" autocomplete="off" aria-label="大会名">
 
     <div class="viewport" id="viewport">
       <div class="bracket-scale" id="bracket-scale">
@@ -157,7 +164,7 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="rec-title">
     <div class="dialog-head">
       <h3 id="rec-title">対戦の記録</h3>
-      <button type="button" id="rec-close" class="icon-btn" title="閉じる"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+      <button type="button" id="rec-close" class="icon-btn" title="閉じる" aria-label="閉じる"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="rec-players">
       <div class="rec-row">
