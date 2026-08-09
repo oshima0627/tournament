@@ -486,6 +486,28 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+/* ---------- 抽選（ルーレット） ---------- */
+@keyframes spin-icon { to { transform: rotate(360deg); } }
+.btn.spinning .i { animation: spin-icon .55s linear infinite; }
+.btn:disabled { opacity: .7; cursor: default; }
+
+/* 回っているあいだは対戦表を触れないようにする */
+body.spinning .bracket,
+body.spinning .league { pointer-events: none; }
+
+/* 確定した瞬間だけ淡く光らせる */
+@keyframes settle {
+  from { background: var(--accent-weak); }
+  to   { background: var(--surface); }
+}
+.match.settled { animation: settle .8s ease-out; }
+table.cross th.rowhead.settled { animation: settle .8s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.spinning .i { animation: none; }
+  .match.settled, table.cross th.rowhead.settled { animation: none; }
+}
+
 /* ---------- リーグ（星取表） ---------- */
 .league { display: inline-block; }
 table.cross { border-collapse: collapse; background: var(--surface); }

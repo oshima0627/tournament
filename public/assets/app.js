@@ -1131,19 +1131,82 @@ function applyBulk(text) {
 
 const hasResults = () => Object.keys(state.results).length > 0;
 
-/** 組み合わせ抽選（Fisher–Yates） */
-function shuffleOrder() {
-  if (state.players.length < 2) return;
-  if (hasResults() && !confirm('抽選すると、記録済みの勝敗はすべて消えます。よろしいですか？')) return;
-
-  const list = state.players.slice();
+/** Fisher–Yates で並びをかき混ぜた新しい配列を返す */
+function shuffled(arr) {
+  const list = arr.slice();
   for (let i = list.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [list[i], list[j]] = [list[j], list[i]];
   }
-  state.players = list;
+  return list;
+}
+
+/* ---------- 抽選（ルーレット） ---------- */
+const SPIN_MS = 1600;           // 回り始めてから止まるまで
+const SPIN_FAST = 55;           // いちばん速いときの間隔
+const SPIN_SLOW = 260;          // 止まる直前の間隔
+let spinning = false;
+
+/** 動きを減らす設定の端末では演出を省く */
+const prefersReducedMotion = () =>
+  window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * 組み合わせ抽選（F-05）。
+ * 結果はすぐ決まっているが、決まる様子をルーレットとして見せてから確定させる。
+ * 途中の並びは保存しない。
+ */
+function shuffleOrder() {
+  if (spinning || state.players.length < 2) return;
+  if (hasResults() && !confirm('抽選すると、記録済みの勝敗はすべて消えます。よろしいですか？')) return;
+
+  const final = shuffled(state.players);
   state.results = {};
-  render();
+
+  if (prefersReducedMotion()) {
+    state.players = final;
+    render();
+    finishSpin();
+    return;
+  }
+
+  spinning = true;
+  document.body.classList.add('spinning');
+  const btn = $('#btn-shuffle');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+
+  const started = performance.now();
+  const tick = () => {
+    const t = Math.min(1, (performance.now() - started) / SPIN_MS);
+    if (t >= 1) {
+      state.players = final;
+      render();
+      finishSpin();
+      return;
+    }
+    // 途中はでたらめな並びを見せる。保存はしない
+    state.players = shuffled(state.players);
+    renderPlayerList();
+    renderBoard();
+    // 終わりに近づくほど間隔を広げて、減速して見せる
+    setTimeout(tick, SPIN_FAST + (SPIN_SLOW - SPIN_FAST) * t * t);
+  };
+  tick();
+}
+
+/** 抽選の後始末。確定した組み合わせを一瞬光らせる */
+function finishSpin() {
+  spinning = false;
+  document.body.classList.remove('spinning');
+  const btn = $('#btn-shuffle');
+  btn.classList.remove('spinning');
+  btn.disabled = false;
+
+  const cards = document.querySelectorAll('.match, table.cross th.rowhead');
+  cards.forEach((el) => el.classList.add('settled'));
+  setTimeout(() => cards.forEach((el) => el.classList.remove('settled')), 800);
+
   toast('組み合わせを抽選しました');
 }
 
